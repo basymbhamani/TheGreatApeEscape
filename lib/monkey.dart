@@ -2,7 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'platform.dart';
 
-class Monkey extends SpriteAnimationComponent 
+class Monkey extends SpriteAnimationComponent
     with HasGameRef, CollisionCallbacks {
   final JoystickComponent joystick;
   Vector2 velocity = Vector2.zero();
@@ -22,16 +22,13 @@ class Monkey extends SpriteAnimationComponent
     final runSprites = await Future.wait(
       List.generate(6, (index) => Sprite.load('sprites/sprite_$index.png')),
     );
-    
+
     // Load jump sprite separately
     final jumpSprite = await Sprite.load('sprites/sprite_jump.png');
 
     // Create animations
-    idleAnimation = SpriteAnimation.spriteList(
-      [runSprites[0]],
-      stepTime: 1,
-    );
-    
+    idleAnimation = SpriteAnimation.spriteList([runSprites[0]], stepTime: 1);
+
     runAnimation = SpriteAnimation.spriteList(
       runSprites,
       stepTime: _animationSpeed,
@@ -39,10 +36,7 @@ class Monkey extends SpriteAnimationComponent
     );
 
     // Create jump animation with single frame
-    jumpAnimation = SpriteAnimation.spriteList(
-      [jumpSprite],
-      stepTime: 1,
-    );
+    jumpAnimation = SpriteAnimation.spriteList([jumpSprite], stepTime: 1);
 
     // Initial animation
     animation = idleAnimation;
@@ -62,20 +56,23 @@ class Monkey extends SpriteAnimationComponent
   }
 
   @override
-  void onCollisionStart(Set<Vector2> points, PositionComponent other) {
+  void onCollisionStart(
+    Set<Vector2> intersectionPoints,
+    PositionComponent other,
+  ) {
     if (other is Platform) {
       _isGrounded = true;
       velocity.y = 0;
       // Revert to appropriate animation when landing
       animation = joystick.delta.x.abs() > 0 ? runAnimation : idleAnimation;
     }
-    super.onCollisionStart(points, other);
+    super.onCollisionStart(intersectionPoints, other);
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-    
+
     final bool isMoving = joystick.delta.x.abs() > 0;
 
     // Only update animation if grounded
@@ -92,6 +89,10 @@ class Monkey extends SpriteAnimationComponent
       velocity.y += gravity * dt;
       position.y += velocity.y * dt;
     }
+
+    // Keep monkey within screen bounds
+    position.x = position.x.clamp(0, 1280 - size.x);
+    position.y = position.y.clamp(0, 720 - size.y);
 
     // Update direction
     if (joystick.delta.x > 0) {

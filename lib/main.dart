@@ -5,6 +5,7 @@ import 'game.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
@@ -13,7 +14,12 @@ void main() {
       MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
-          body: GameWidget(game: ApeEscapeGame()), // Correct way to embed a Flame game
+          backgroundColor: const Color(0xFF87CEEB),
+          body: GameWidget(
+            game: ApeEscapeGame(),
+            backgroundBuilder:
+                (context) => Container(color: const Color(0xFF87CEEB)),
+          ),
         ),
       ),
     );
