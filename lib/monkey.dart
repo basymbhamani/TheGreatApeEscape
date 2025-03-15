@@ -2,9 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'platform.dart';
 
-class Monkey extends SpriteAnimationComponent
-    with HasGameRef, CollisionCallbacks {
-  final JoystickComponent joystick;
+class Monkey extends SpriteAnimationComponent with HasGameRef, CollisionCallbacks {
+  final JoystickComponent? joystick; // Nullable joystick
   Vector2 velocity = Vector2.zero();
   double gravity = 500;
   bool _isGrounded = false;
@@ -12,9 +11,18 @@ class Monkey extends SpriteAnimationComponent
 
   late final SpriteAnimation idleAnimation;
   late final SpriteAnimation runAnimation;
-  late final SpriteAnimation jumpAnimation; // New jump animation
+  late final SpriteAnimation jumpAnimation;
 
   Monkey(this.joystick);
+
+  // Getter and setter for _isGrounded
+  bool get isGrounded => _isGrounded;
+  set isGrounded(bool value) {
+    _isGrounded = value;
+    if (_isGrounded && joystick != null) {
+      animation = joystick!.delta.x.abs() > 0 ? runAnimation : idleAnimation;
+    }
+  }
 
   @override
   Future<void> onLoad() async {
@@ -51,20 +59,17 @@ class Monkey extends SpriteAnimationComponent
     if (_isGrounded) {
       velocity.y = -300;
       _isGrounded = false;
-      animation = jumpAnimation; // Switch to jump animation when jumping
+      animation = jumpAnimation;
     }
   }
 
   @override
-  void onCollisionStart(
-    Set<Vector2> intersectionPoints,
-    PositionComponent other,
-  ) {
+  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
     if (other is Platform) {
       _isGrounded = true;
       velocity.y = 0;
-      // Revert to appropriate animation when landing
-      animation = joystick.delta.x.abs() > 0 ? runAnimation : idleAnimation;
+      // Only update animation if joystick exists (local player)
+      animation = (joystick != null && joystick!.delta.x.abs() > 0) ? runAnimation : idleAnimation;
     }
     super.onCollisionStart(intersectionPoints, other);
   }
@@ -73,16 +78,17 @@ class Monkey extends SpriteAnimationComponent
   void update(double dt) {
     super.update(dt);
 
-    final bool isMoving = joystick.delta.x.abs() > 0;
+    final bool isMoving = joystick != null && joystick!.delta.x.abs() > 0;
 
-    // Only update animation if grounded
-    if (_isGrounded) {
+    if (_isGrounded && joystick != null) {
       animation = isMoving ? runAnimation : idleAnimation;
     }
 
-    // Horizontal movement
-    final horizontalMovement = Vector2(joystick.delta.x, 0);
-    position.add(horizontalMovement * dt * 2);
+    // Only apply joystick movement for local player
+    if (joystick != null) {
+      final horizontalMovement = Vector2(joystick!.delta.x, 0);
+      position.add(horizontalMovement * dt * 2);
+    }
 
     // Apply gravity
     if (!_isGrounded) {
@@ -95,9 +101,9 @@ class Monkey extends SpriteAnimationComponent
     position.y = position.y.clamp(0, 720 - size.y);
 
     // Update direction
-    if (joystick.delta.x > 0) {
+    if (joystick != null && joystick!.delta.x > 0) {
       scale.x = 1;
-    } else if (joystick.delta.x < 0) {
+    } else if (joystick != null && joystick!.delta.x < 0) {
       scale.x = -1;
     }
   }
