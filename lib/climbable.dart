@@ -1,8 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 
-class Platform extends PositionComponent with CollisionCallbacks {
-  Platform(Vector2 position, Vector2 size) {
+class Climbable extends PositionComponent with CollisionCallbacks {
+  Climbable(Vector2 position, Vector2 size) {
     this.position = position;
     this.size = size;
   }
@@ -10,8 +11,11 @@ class Platform extends PositionComponent with CollisionCallbacks {
   @override
   Future<void> onLoad() async {
     super.onLoad();
-    final sprite = await Sprite.load('platforms/grass_platform.png');
-    add(SpriteComponent(sprite: sprite, size: size));
+    add(RectangleComponent(
+      position: Vector2.zero(),
+      size: size,
+      paint: Paint()..color = Colors.green,
+    ));
     add(RectangleHitbox()
       ..collisionType = CollisionType.passive
       ..size = size

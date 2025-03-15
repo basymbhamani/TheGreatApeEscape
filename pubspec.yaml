@@ -65,7 +65,7 @@ flutter:
   assets:
     - assets/images/monkey.png
     - assets/images/sprites/
-    
+    - assets/images/platforms/grass_platform.png
 
 
   # To add assets to your application, add an assets section, like this:

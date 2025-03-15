@@ -1,13 +1,16 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'platform.dart';
+import 'game.dart';
+import 'climbable.dart';
 
 class Monkey extends SpriteAnimationComponent
-    with HasGameRef, CollisionCallbacks {
+    with HasGameRef<ApeEscapeGame>, CollisionCallbacks {
   final JoystickComponent joystick;
   Vector2 velocity = Vector2.zero();
   double gravity = 500;
   bool _isGrounded = false;
+  bool _isClimbing = false;
   final double _animationSpeed = 0.1;
 
   late final SpriteAnimation idleAnimation;
@@ -45,6 +48,7 @@ class Monkey extends SpriteAnimationComponent
     position = Vector2(200, 200);
     add(RectangleHitbox());
     anchor = Anchor.center;
+    debugMode = true;
   }
 
   void jump() {
@@ -52,6 +56,25 @@ class Monkey extends SpriteAnimationComponent
       velocity.y = -300;
       _isGrounded = false;
       animation = jumpAnimation; // Switch to jump animation when jumping
+    }
+  }
+
+  void startClimbing() {
+    _isClimbing = true;
+    velocity = Vector2.zero();
+    animation = runAnimation; // Switch to climb animation when climbing
+  }
+
+  void stopClimbing() {
+    _isClimbing = false;
+    animation = idleAnimation; // Revert to idle animation when stopping climbing
+  }
+
+
+  void checkIfDead() {
+    // condition for player death
+    if (position.y > gameRef.size.y) {
+      gameRef.resetGame();
     }
   }
 
@@ -65,20 +88,39 @@ class Monkey extends SpriteAnimationComponent
       velocity.y = 0;
       // Revert to appropriate animation when landing
       animation = joystick.delta.x.abs() > 0 ? runAnimation : idleAnimation;
+    }else if(other is Climbable) {
+      startClimbing();
     }
     super.onCollisionStart(intersectionPoints, other);
+  }
+
+  @override
+  void onCollisionEnd(PositionComponent other) {
+    if (other is Platform) {
+      _isGrounded = false;
+    }else if(other is Climbable) {
+      stopClimbing();
+    }
+    super.onCollisionEnd(other);
   }
 
   @override
   void update(double dt) {
     super.update(dt);
 
-    final bool isMoving = joystick.delta.x.abs() > 0;
+    if(_isClimbing) {
+      // Vertical movement
+      final verticalMovement = Vector2(0, joystick.delta.y);
+      position.add(verticalMovement * dt * 2);
+      return;
+    }else{
+      final bool isMoving = joystick.delta.x.abs() > 0;
 
     // Only update animation if grounded
     if (_isGrounded) {
       animation = isMoving ? runAnimation : idleAnimation;
     }
+    
 
     // Horizontal movement
     final horizontalMovement = Vector2(joystick.delta.x, 0);
@@ -90,15 +132,16 @@ class Monkey extends SpriteAnimationComponent
       position.y += velocity.y * dt;
     }
 
-    // Keep monkey within screen bounds
-    position.x = position.x.clamp(0, 1280 - size.x);
-    position.y = position.y.clamp(0, 720 - size.y);
-
     // Update direction
     if (joystick.delta.x > 0) {
       scale.x = 1;
     } else if (joystick.delta.x < 0) {
       scale.x = -1;
     }
+
+    }
+
+    // Check if the player is dead
+    checkIfDead();
   }
 }

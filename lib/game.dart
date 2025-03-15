@@ -5,6 +5,7 @@ import 'package:flame/camera.dart';
 import 'package:flutter/material.dart';
 import 'monkey.dart';
 import 'platform.dart';
+import 'climbable.dart';
 
 class ApeEscapeGame extends FlameGame with HasCollisionDetection {
   late final JoystickComponent joystick;
@@ -33,7 +34,10 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection {
     );
 
     // Ground platform spanning screen width
-    add(Platform(Vector2(0, 400), Vector2(gameWidth, 100)));
+    //add(Platform(Vector2(0, 400), Vector2(gameWidth, 100)));
+
+    add(Platform(Vector2(0, 400), Vector2(gameWidth/4-50 , 100)));
+    add(Climbable(Vector2(gameWidth / 4 - 50, 300), Vector2(50, 100)));
 
     // Initialize joystick first - using screen percentage for positioning
     joystick = JoystickComponent(
@@ -66,6 +70,10 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection {
         onPressed: player.jump,
       ),
     );
+  }
+
+  resetGame() {
+    player.position = Vector2(200, 200);
   }
 
   @override
