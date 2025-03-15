@@ -1,5 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
+import 'package:flutter/material.dart' show lerpDouble;
 import 'platform.dart';
 
 class Monkey extends SpriteAnimationComponent
@@ -9,12 +10,17 @@ class Monkey extends SpriteAnimationComponent
   double gravity = 500;
   bool _isGrounded = false;
   final double _animationSpeed = 0.1;
+  final double screenWidth;
+  final double screenHeight;
+
+  // Movement constants
+  static const double moveSpeed = 0.00005; // Further reduced movement speed
 
   late final SpriteAnimation idleAnimation;
   late final SpriteAnimation runAnimation;
-  late final SpriteAnimation jumpAnimation; // New jump animation
+  late final SpriteAnimation jumpAnimation;
 
-  Monkey(this.joystick);
+  Monkey(this.joystick, this.screenWidth, this.screenHeight);
 
   @override
   Future<void> onLoad() async {
@@ -28,30 +34,30 @@ class Monkey extends SpriteAnimationComponent
 
     // Create animations
     idleAnimation = SpriteAnimation.spriteList([runSprites[0]], stepTime: 1);
-
     runAnimation = SpriteAnimation.spriteList(
       runSprites,
       stepTime: _animationSpeed,
       loop: true,
     );
-
-    // Create jump animation with single frame
     jumpAnimation = SpriteAnimation.spriteList([jumpSprite], stepTime: 1);
 
     // Initial animation
     animation = idleAnimation;
 
-    size = Vector2(150, 150);
-    position = Vector2(200, 200);
+    // Size relative to screen height
+    size = Vector2(screenHeight * 0.3, screenHeight * 0.3);
     add(RectangleHitbox());
     anchor = Anchor.center;
+
+    // Adjust gravity and jump velocity based on screen size
+    gravity = screenHeight * 1.2; // Scale gravity with screen height
   }
 
   void jump() {
     if (_isGrounded) {
-      velocity.y = -300;
+      velocity.y = -screenHeight * 0.7; // Slightly lower jump
       _isGrounded = false;
-      animation = jumpAnimation; // Switch to jump animation when jumping
+      animation = jumpAnimation;
     }
   }
 
@@ -80,9 +86,13 @@ class Monkey extends SpriteAnimationComponent
       animation = isMoving ? runAnimation : idleAnimation;
     }
 
-    // Horizontal movement
-    final horizontalMovement = Vector2(joystick.delta.x, 0);
-    position.add(horizontalMovement * dt * 2);
+    // Direct horizontal movement without smoothing
+    if (isMoving) {
+      velocity.x = joystick.delta.x * screenWidth * moveSpeed;
+    } else {
+      velocity.x = 0; // Immediate stop when joystick is released
+    }
+    position.x += velocity.x;
 
     // Apply gravity
     if (!_isGrounded) {
@@ -91,8 +101,8 @@ class Monkey extends SpriteAnimationComponent
     }
 
     // Keep monkey within screen bounds
-    position.x = position.x.clamp(0, 1280 - size.x);
-    position.y = position.y.clamp(0, 720 - size.y);
+    position.x = position.x.clamp(0, screenWidth - size.x);
+    position.y = position.y.clamp(0, screenHeight - size.y);
 
     // Update direction
     if (joystick.delta.x > 0) {

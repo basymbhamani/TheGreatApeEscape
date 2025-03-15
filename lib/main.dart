@@ -13,13 +13,23 @@ void main() {
     runApp(
       MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: const Color(0xFF87CEEB),
-          body: GameWidget(
-            game: ApeEscapeGame(),
-            backgroundBuilder:
-                (context) => Container(color: const Color(0xFF87CEEB)),
-          ),
+        home: Builder(
+          builder: (context) {
+            final mediaQuery = MediaQuery.of(context);
+            final screenSize = mediaQuery.size;
+            print(
+              'Actual device size: ${screenSize.width} x ${screenSize.height}',
+            );
+
+            return Scaffold(
+              backgroundColor: const Color(0xFF87CEEB),
+              body: GameWidget(
+                game: ApeEscapeGame(),
+                backgroundBuilder:
+                    (context) => Container(color: const Color(0xFF87CEEB)),
+              ),
+            );
+          },
         ),
       ),
     );
