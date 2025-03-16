@@ -86,7 +86,7 @@ class HostJoinScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             side: const BorderSide(color: Colors.black, width: 2),
           ),
-          contentPadding: const EdgeInsets.all(20),
+          contentPadding: const EdgeInsets.all(16),
           content: SizedBox(
             width: 400,
             child: Column(
@@ -97,35 +97,37 @@ class HostJoinScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  icon: const Icon(Icons.arrow_back, size: 30),
+                  icon: const Icon(Icons.arrow_back, size: 24),
+                  padding: EdgeInsets.zero,
                   alignment: Alignment.topLeft,
                 ),
                 const Center(
                   child: Text(
                     'HOST',
                     style: TextStyle(
-                      fontSize: 42,
+                      fontSize: 36,
                       fontWeight: FontWeight.bold,
                       color: Colors.orange,
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 const Text(
                   'Please enter a group name:',
-                  style: TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: 14),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 const TextField(
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'Group Name',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 40,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context);
@@ -145,7 +147,7 @@ class HostJoinScreen extends StatelessWidget {
                     child: const Text(
                       'START',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -172,7 +174,7 @@ class HostJoinScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             side: const BorderSide(color: Colors.black, width: 2),
           ),
-          contentPadding: const EdgeInsets.all(20),
+          contentPadding: const EdgeInsets.all(16),
           content: SizedBox(
             width: 400,
             child: Column(
@@ -183,35 +185,37 @@ class HostJoinScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  icon: const Icon(Icons.arrow_back, size: 30),
+                  icon: const Icon(Icons.arrow_back, size: 24),
+                  padding: EdgeInsets.zero,
                   alignment: Alignment.topLeft,
                 ),
                 const Center(
                   child: Text(
                     'JOIN',
                     style: TextStyle(
-                      fontSize: 42,
+                      fontSize: 36,
                       fontWeight: FontWeight.bold,
                       color: Colors.green,
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 const Text(
                   'Please enter a lobby code:',
-                  style: TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: 14),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 const TextField(
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'Lobby Code',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 40,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context);
@@ -231,7 +235,7 @@ class HostJoinScreen extends StatelessWidget {
                     child: const Text(
                       'START',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -246,3 +250,5 @@ class HostJoinScreen extends StatelessWidget {
     );
   }
 }
+
+

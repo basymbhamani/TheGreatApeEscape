@@ -36,7 +36,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection {
         radius: 50,
         paint: Paint()..color = const Color(0xFF444444),
       ),
-      margin: const EdgeInsets.only(left: 100, top: 200),
+      margin: const EdgeInsets.only(left: 30, top: 225),
       priority: 1,
     );
     add(joystick);

@@ -67,7 +67,7 @@ class PreGameLobby extends StatelessWidget {
               ),
             ),
             Positioned(
-              top: 100,
+              top: 15,
               left: 0,
               right: 0,
               child: Column(
@@ -116,7 +116,7 @@ class LobbyGame extends ApeEscapeGame {
     
     // Ground (brown, with collision)
     final ground = RectangleComponent(
-      position: Vector2(0, 620),
+      position: Vector2(0, 350),
       size: Vector2(2856.0, 1280),
       paint: Paint()..color = const Color(0xFF8B4513),
       priority: 1,
@@ -126,7 +126,7 @@ class LobbyGame extends ApeEscapeGame {
 
     // Door (centered on ground) with navigation callback
     final door = Door(
-      Vector2(1180, 425), // Position the door on the ground (adjust Y position)
+      Vector2(700, 155), // Position the door on the ground (adjust Y position)
       onPlayerEnter: () {
         Navigator.pushReplacement(
           context,
@@ -145,9 +145,6 @@ class LobbyGame extends ApeEscapeGame {
       remove(oldPlatform);
     }
 
-    // Ensure player is positioned correctly on the ground
-    player.position = Vector2(200, 620 - player.size.y / 2); // Adjusted to sit on top of the ground
-    player.isGrounded = true;
 
     // Debugging
     debugMode = true; // Set to true to visualize hitboxes

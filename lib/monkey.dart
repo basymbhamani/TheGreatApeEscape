@@ -47,7 +47,7 @@ class Monkey extends SpriteAnimationComponent with HasGameRef, CollisionCallback
     animation = idleAnimation;
 
     size = Vector2(150, 150);
-    position = Vector2(200, 620 - size.y / 2); // Adjusted to sit on top of the ground
+    position = Vector2(200, 250); // Adjusted to sit on top of the ground
     add(RectangleHitbox());
     anchor = Anchor.center;
   }
