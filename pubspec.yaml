@@ -65,6 +65,9 @@ flutter:
   assets:
     - assets/images/monkey.png
     - assets/images/sprites/
+    - assets/images/main_background.png
+    - assets/images/jungle_door.png
+    - assets/images/jungle_sign.png
     
 
 

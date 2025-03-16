@@ -1,18 +1,26 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'platform.dart';
+import 'door.dart'; // Import Door for type checking
 
-class Monkey extends SpriteAnimationComponent
-    with HasGameRef, CollisionCallbacks {
+class Monkey extends SpriteAnimationComponent with HasGameRef, CollisionCallbacks {
   final JoystickComponent joystick;
   Vector2 velocity = Vector2.zero();
   double gravity = 500;
   bool _isGrounded = false;
   final double _animationSpeed = 0.1;
 
+  // Public setter for _isGrounded
+  set isGrounded(bool value) {
+    _isGrounded = value;
+  }
+
+  // Public getter for _isGrounded (optional, if needed elsewhere)
+  bool get isGrounded => _isGrounded;
+
   late final SpriteAnimation idleAnimation;
   late final SpriteAnimation runAnimation;
-  late final SpriteAnimation jumpAnimation; // New jump animation
+  late final SpriteAnimation jumpAnimation;
 
   Monkey(this.joystick);
 
@@ -28,21 +36,18 @@ class Monkey extends SpriteAnimationComponent
 
     // Create animations
     idleAnimation = SpriteAnimation.spriteList([runSprites[0]], stepTime: 1);
-
     runAnimation = SpriteAnimation.spriteList(
       runSprites,
       stepTime: _animationSpeed,
       loop: true,
     );
-
-    // Create jump animation with single frame
     jumpAnimation = SpriteAnimation.spriteList([jumpSprite], stepTime: 1);
 
     // Initial animation
     animation = idleAnimation;
 
     size = Vector2(150, 150);
-    position = Vector2(200, 200);
+    position = Vector2(200, 620 - size.y / 2); // Adjusted to sit on top of the ground
     add(RectangleHitbox());
     anchor = Anchor.center;
   }
@@ -51,20 +56,23 @@ class Monkey extends SpriteAnimationComponent
     if (_isGrounded) {
       velocity.y = -300;
       _isGrounded = false;
-      animation = jumpAnimation; // Switch to jump animation when jumping
+      animation = jumpAnimation;
     }
   }
 
   @override
-  void onCollisionStart(
-    Set<Vector2> intersectionPoints,
-    PositionComponent other,
-  ) {
-    if (other is Platform) {
-      _isGrounded = true;
-      velocity.y = 0;
-      // Revert to appropriate animation when landing
-      animation = joystick.delta.x.abs() > 0 ? runAnimation : idleAnimation;
+  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+    if (other is Platform || other is RectangleComponent && !(other is Door)) {
+      // Check if the player is landing on top of a platform or ground
+      if (velocity.y > 0 && intersectionPoints.first.y >= other.position.y) {
+        _isGrounded = true;
+        velocity.y = 0;
+        position.y = other.position.y - size.y / 2; // Stand on top
+        animation = joystick.delta.x.abs() > 0 ? runAnimation : idleAnimation;
+      }
+    } else if (other is Door) {
+      // Door collision handled by Door.dart, no position adjustment needed
+      print("Monkey collided with door!"); // Debug
     }
     super.onCollisionStart(intersectionPoints, other);
   }
@@ -75,7 +83,6 @@ class Monkey extends SpriteAnimationComponent
 
     final bool isMoving = joystick.delta.x.abs() > 0;
 
-    // Only update animation if grounded
     if (_isGrounded) {
       animation = isMoving ? runAnimation : idleAnimation;
     }

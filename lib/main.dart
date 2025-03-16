@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flame/game.dart';
+import 'host_join_screen.dart';
 import 'game.dart';
 
 void main() {
@@ -11,16 +12,9 @@ void main() {
     DeviceOrientation.landscapeRight,
   ]).then((_) {
     runApp(
-      MaterialApp(
+      const MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: const Color(0xFF87CEEB),
-          body: GameWidget(
-            game: ApeEscapeGame(),
-            backgroundBuilder:
-                (context) => Container(color: const Color(0xFF87CEEB)),
-          ),
-        ),
+        home: HostJoinScreen(), // Start with the HostJoinScreen
       ),
     );
   });
