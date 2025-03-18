@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  nakama: ^1.2.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -39,6 +39,7 @@ dependencies:
   flame: ^1.25.0
   flame_forge2d: ^0.18.2+6
   flame_audio: ^2.11.0
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -68,8 +69,7 @@ flutter:
     - assets/images/main_background.png
     - assets/images/jungle_door.png
     - assets/images/jungle_sign.png
-    
-
+    - assets/.env
 
   # To add assets to your application, add an assets section, like this:
   # assets:

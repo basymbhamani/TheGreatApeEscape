@@ -1,8 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:nakama/nakama.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'pre_game_lobby.dart'; // Import the PreGameLobby screen
 
-class HostJoinScreen extends StatelessWidget {
-  const HostJoinScreen({super.key});
+class HostJoinScreen extends StatefulWidget {
+  final NakamaBaseClient nakamaClient;
+  final Session session;
+
+  const HostJoinScreen({
+    Key? key,
+    required this.nakamaClient,
+    required this.session,
+  }) : super(key: key);
+
+  @override
+  _HostJoinScreenState createState() => _HostJoinScreenState();
+}
+
+class _HostJoinScreenState extends State<HostJoinScreen> {
+  late NakamaWebsocketClient socket;
+  late Match match;
+  final TextEditingController _groupNameController = TextEditingController();
+  final TextEditingController _lobbyCodeController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeWebSocket();
+  }
+
+  Future<void> _initializeWebSocket() async {
+    socket = NakamaWebsocketClient.init(
+      host: dotenv.env['NAKAMA_HOST']!,
+      ssl: dotenv.env['NAKAMA_SSL']!.toLowerCase() == 'true',
+      token: widget.session.token,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,7 +44,7 @@ class HostJoinScreen extends StatelessWidget {
         decoration: BoxDecoration(
           image: DecorationImage(
             image: AssetImage("assets/images/main_background.png"),
-            fit: BoxFit.cover, // Ensures the image covers the whole screen
+            fit: BoxFit.cover,
           ),
         ),
         child: Center(
@@ -23,9 +56,7 @@ class HostJoinScreen extends StatelessWidget {
                 width: 300,
                 height: 100,
                 child: ElevatedButton(
-                  onPressed: () {
-                    _showHostDialog(context);
-                  },
+                  onPressed: () => _showHostDialog(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     shape: RoundedRectangleBorder(
@@ -48,9 +79,7 @@ class HostJoinScreen extends StatelessWidget {
                 width: 300,
                 height: 100,
                 child: ElevatedButton(
-                  onPressed: () {
-                    _showJoinDialog(context);
-                  },
+                  onPressed: () => _showJoinDialog(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     shape: RoundedRectangleBorder(
@@ -94,9 +123,7 @@ class HostJoinScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 IconButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back, size: 24),
                   padding: EdgeInsets.zero,
                   alignment: Alignment.topLeft,
@@ -117,11 +144,15 @@ class HostJoinScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 8),
-                const TextField(
-                  decoration: InputDecoration(
+                TextField(
+                  controller: _groupNameController,
+                  decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'Group Name',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -129,12 +160,19 @@ class HostJoinScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 40,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
+                      match = await socket.createMatch();
                       Navigator.pop(context);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const PreGameLobby(code: 'ABCDEF', isHost: true),
+                          builder:
+                              (context) => PreGameLobby(
+                                code: match.matchId,
+                                socket: socket,
+                                isHost: true,
+                                session: widget.session,
+                              ),
                         ),
                       );
                     },
@@ -182,9 +220,7 @@ class HostJoinScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 IconButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back, size: 24),
                   padding: EdgeInsets.zero,
                   alignment: Alignment.topLeft,
@@ -205,11 +241,15 @@ class HostJoinScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 8),
-                const TextField(
-                  decoration: InputDecoration(
+                TextField(
+                  controller: _lobbyCodeController,
+                  decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     labelText: 'Lobby Code',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -217,14 +257,24 @@ class HostJoinScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 40,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PreGameLobby(code: 'ABCDEF', isHost: false),
-                        ),
-                      );
+                    onPressed: () async {
+                      String lobbyCode = _lobbyCodeController.text.trim();
+                      if (lobbyCode.isNotEmpty) {
+                        match = await socket.joinMatch(lobbyCode);
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => PreGameLobby(
+                                  code: match.matchId,
+                                  socket: socket,
+                                  isHost: false,
+                                  session: widget.session,
+                                ),
+                          ),
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
@@ -249,6 +299,11 @@ class HostJoinScreen extends StatelessWidget {
       },
     );
   }
+
+  @override
+  void dispose() {
+    _groupNameController.dispose();
+    _lobbyCodeController.dispose();
+    super.dispose();
+  }
 }
-
-

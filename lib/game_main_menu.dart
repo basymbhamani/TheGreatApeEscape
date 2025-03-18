@@ -1,101 +1,112 @@
 import 'package:flutter/material.dart';
+import 'package:nakama/nakama.dart'; // Add this for NakamaWebsocketClient
 import 'game.dart';
 import 'pre_game_lobby.dart';
 
 class GameMainMenu extends StatelessWidget {
-  const GameMainMenu({super.key});
+  final String matchId; // Match ID from Nakama or elsewhere
+  final NakamaWebsocketClient socket; // WebSocket client for Nakama
+  final Session session; // Add session parameter
+
+  const GameMainMenu({
+    super.key,
+    required this.matchId,
+    required this.socket,
+    required this.session, // Add session to constructor
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Set the background image
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage("assets/images/main_background.png"),
-            fit: BoxFit.cover, // Ensures the image covers the whole screen
+            fit: BoxFit.cover,
           ),
         ),
         child: Column(
           children: [
-            // Title: MAIN MENU at the top
             const Padding(
-              padding: EdgeInsets.only(top: 20), // Add padding to the top
+              padding: EdgeInsets.only(top: 20),
               child: Text(
                 'MAIN MENU',
                 style: TextStyle(
-                  fontSize: 90, // Very large font size
+                  fontSize: 90,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black, // White text
+                  color: Colors.black,
                 ),
               ),
             ),
-            const SizedBox(height: 20), // Space between title and menu items
-
-            // Menu Items in a scrollable column to avoid overflow
+            const SizedBox(height: 20),
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20), // Reduced horizontal padding
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // First Row: Story Mode and Return to Lobby
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          // Story Mode
                           _buildMenuOption(
                             icon: Icons.book,
                             label: 'Story Mode',
                             onTap: () {
-                              // Navigate to Story Mode
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const StoryModeScreen()),
+                                MaterialPageRoute(
+                                  builder: (context) => const StoryModeScreen(),
+                                ),
                               );
                             },
                           ),
-                          // Return to Lobby
                           _buildMenuOption(
                             icon: Icons.home,
                             label: 'Return to Lobby',
                             onTap: () {
-                              // Navigate to Lobby
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const PreGameLobby(code: 'ABCDEF', isHost: true)),
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => PreGameLobby(
+                                        code: matchId,
+                                        socket: socket,
+                                        isHost: true,
+                                        session: session,
+                                      ),
+                                ),
                               );
                             },
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10), // Reduced space between rows
-                      // Second Row: Settings and Leaderboard
+                      const SizedBox(height: 10),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          // Settings
                           _buildMenuOption(
                             icon: Icons.settings,
                             label: 'Settings',
                             onTap: () {
-                              // Navigate to Settings
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                                MaterialPageRoute(
+                                  builder: (context) => const SettingsScreen(),
+                                ),
                               );
                             },
                           ),
-                          // Leaderboard
                           _buildMenuOption(
                             icon: Icons.leaderboard,
                             label: 'Leaderboard',
                             onTap: () {
-                              // Navigate to Leaderboard
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const LeaderboardScreen()),
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => const LeaderboardScreen(),
+                                ),
                               );
                             },
                           ),
@@ -112,7 +123,6 @@ class GameMainMenu extends StatelessWidget {
     );
   }
 
-  // Helper method to build a menu option with a sign image
   Widget _buildMenuOption({
     required IconData icon,
     required String label,
@@ -123,28 +133,15 @@ class GameMainMenu extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Jungle sign image
-          Image.asset(
-            'assets/images/jungle_sign.png',
-            width: 350,
-            height: 350, 
-          ),
-          // Icon and text on top of the sign
+          Image.asset('assets/images/jungle_sign.png', width: 350, height: 350),
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 30, // Slightly smaller icon
-                color: Colors.white,
-              ),
-              const SizedBox(height: 4), // Reduced space between icon and text
+              Icon(icon, size: 30, color: Colors.white),
+              const SizedBox(height: 4),
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 16, // Slightly smaller font size
-                  color: Colors.white,
-                ),
+                style: const TextStyle(fontSize: 16, color: Colors.white),
               ),
             ],
           ),
@@ -168,7 +165,10 @@ class StoryModeScreen extends StatelessWidget {
           ),
         ),
         child: const Center(
-          child: Text('Story Mode', style: TextStyle(fontSize: 24, color: Colors.white)),
+          child: Text(
+            'Story Mode',
+            style: TextStyle(fontSize: 24, color: Colors.white),
+          ),
         ),
       ),
     );
@@ -189,7 +189,10 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         child: const Center(
-          child: Text('Settings', style: TextStyle(fontSize: 24, color: Colors.white)),
+          child: Text(
+            'Settings',
+            style: TextStyle(fontSize: 24, color: Colors.white),
+          ),
         ),
       ),
     );
@@ -210,7 +213,10 @@ class LeaderboardScreen extends StatelessWidget {
           ),
         ),
         child: const Center(
-          child: Text('Leaderboard', style: TextStyle(fontSize: 24, color: Colors.white)),
+          child: Text(
+            'Leaderboard',
+            style: TextStyle(fontSize: 24, color: Colors.white),
+          ),
         ),
       ),
     );
