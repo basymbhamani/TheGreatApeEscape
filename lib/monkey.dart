@@ -225,6 +225,36 @@ class Monkey extends SpriteAnimationComponent
       die();
     } else if (other is Door) {
       print("Monkey collided with door!");
+    } else if (other is Monkey && !_isDead && !other.isDead) {
+      // Handle monkey-to-monkey collisions
+      final verticalDiff = (position.y + size.y / 2) - other.position.y;
+      
+      if (verticalDiff > 0 && verticalDiff < size.y * 0.4 && velocity.y >= 0) {
+        // Landing on top of another monkey - snap to position
+        _isGrounded = true;
+        velocity.y = 0;
+        position.y = other.position.y - size.y * 0.5;
+        _currentPlatform = other;
+        animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
+      } else if (verticalDiff < 0 && -verticalDiff < size.y * 0.4 && other.velocity.y >= 0) {
+        // Other monkey landing on top
+        other.isGrounded = true;
+        other.velocity.y = 0;
+        other.position.y = position.y - size.y * 0.5;
+        other._currentPlatform = this;
+      } else {
+        // Horizontal collision - bounce off each other
+        final dx = position.x - other.position.x;
+        if (dx > 0) {
+          // This monkey is on the right
+          position.x += 5;
+          other.position.x -= 5;
+        } else {
+          // This monkey is on the left
+          position.x -= 5;
+          other.position.x += 5;
+        }
+      }
     }
     super.onCollisionStart(intersectionPoints, other);
   }
@@ -249,6 +279,12 @@ class Monkey extends SpriteAnimationComponent
     } else if (other is Vine && other == _currentVine) {
       _currentVine = null;
       _isClimbing = false;
+    } else if (other is Monkey && !_isDead && !other.isDead) {
+      // Only unground if we were standing on the other monkey
+      if (position.y < other.position.y) {
+        _isGrounded = false;
+        _currentPlatform = null;
+      }
     }
     super.onCollisionEnd(other);
   }
@@ -316,6 +352,10 @@ class Monkey extends SpriteAnimationComponent
             position.y += toTarget.y * platform.moveSpeed * dt;
             velocity.y = 0;
           }
+        } else if (_currentPlatform is Monkey) {
+          // When standing on another monkey, maintain exact position
+          position.y = _currentPlatform!.position.y - size.y * 0.5;
+          velocity.y = 0;
         }
       }
     }
@@ -324,9 +364,14 @@ class Monkey extends SpriteAnimationComponent
 
     if (!_isGrounded && !_isClimbing) {
       velocity.y += gravity * dt;
+      position.y += velocity.y * dt;
+    } else if (_currentPlatform is Monkey) {
+      // When standing on another monkey, maintain exact position
+      position.y = _currentPlatform!.position.y - size.y * 0.5;
+      velocity.y = 0;
+    } else {
+      position.y += velocity.y * dt;
     }
-    
-    position.y += velocity.y * dt;
 
     position.x = position.x.clamp(0, worldWidth - size.x);
 
