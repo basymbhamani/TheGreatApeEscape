@@ -15,6 +15,7 @@ class Cloud extends Platform {
   static const double _blinkDuration = 0.2;
   double _blinkTimer = 0;
   double opacity = 1.0;
+  Monkey? _monkeyOnCloud;
 
   Cloud({
     required double worldWidth,
@@ -43,9 +44,9 @@ class Cloud extends Platform {
 
     // Add collision hitbox that matches the cloud's total height
     add(RectangleHitbox(
-      size: Vector2(Platform.platformSize * numBlocks - 30, Platform.platformSize * 0.1), // Make hitbox height 10% of platform height
-      position: Vector2(0, 75), // Position at the very top of the cloud
-      collisionType: CollisionType.passive,
+      size: Vector2(Platform.platformSize * numBlocks - 30, Platform.platformSize * 0.6), // Increased height further
+      position: Vector2(0, 20), // Moved up more to better match visual cloud
+      collisionType: CollisionType.passive, // Changed back to passive
     )..debugMode = ApeEscapeGame.showHitboxes);
   }
 
@@ -54,6 +55,32 @@ class Cloud extends Platform {
       _isBreaking = true;
       _isFlashing = true;
     }
+  }
+
+  @override
+  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+    if (other is Monkey) {
+      // Check if monkey is above the cloud and falling
+      if (other.position.y + other.size.y / 2 > position.y && 
+          other.position.y + other.size.y / 2 < position.y + 60 && // Increased buffer zone further
+          other.velocity.y > 0) {
+        other.isGrounded = true;
+        other.velocity.y = 0;
+        //other.position.y = position.y - other.size.y / 2;
+        _monkeyOnCloud = other;
+      }
+      startBreaking();
+    }
+    super.onCollisionStart(intersectionPoints, other);
+  }
+
+  @override
+  void onCollisionEnd(PositionComponent other) {
+    if (other is Monkey && other == _monkeyOnCloud) {
+      other.isGrounded = false;
+      _monkeyOnCloud = null;
+    }
+    super.onCollisionEnd(other);
   }
 
   @override
@@ -105,16 +132,5 @@ class Cloud extends Platform {
         }
       }
     }
-  }
-
-  @override
-  void onCollisionStart(
-    Set<Vector2> intersectionPoints,
-    PositionComponent other,
-  ) {
-    if (other is Monkey) {
-      startBreaking();
-    }
-    super.onCollisionStart(intersectionPoints, other);
   }
 }

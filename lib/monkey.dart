@@ -13,6 +13,7 @@ import 'spikes.dart';
 import 'coin.dart';
 import 'rectangular_moving_platform.dart';
 import 'door.dart';
+import 'cloud.dart';
 
 class Monkey extends SpriteAnimationComponent
     with HasGameRef, CollisionCallbacks, KeyboardHandler {
@@ -205,6 +206,16 @@ class Monkey extends SpriteAnimationComponent
       position.y = other.position.y - size.y / 2;
       _currentPlatform = other;
       animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
+    } else if (other is Cloud && !_isDead) {
+      if (position.y + size.y / 2 > other.position.y && 
+          position.y + size.y / 2 < other.position.y + 20 &&
+          velocity.y > 0) {
+        _isGrounded = true;
+        velocity.y = 0;
+        //position.y = other.position.y - size.y / 2;
+        _currentPlatform = other;
+        animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
+      }
     } else if (other is Vine) {
       _currentVine = other;
     } else if (other is Heart) {
@@ -230,6 +241,9 @@ class Monkey extends SpriteAnimationComponent
       _isGrounded = false;
       _currentPlatform = null;
     } else if (other is RectangularMovingPlatform && !_isDead) {
+      _isGrounded = false;
+      _currentPlatform = null;
+    } else if (other is Cloud && !_isDead) {
       _isGrounded = false;
       _currentPlatform = null;
     } else if (other is Vine && other == _currentVine) {
