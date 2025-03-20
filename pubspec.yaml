@@ -64,11 +64,22 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/monkey.png
+    - assets/images/
+    - assets/images/Background/
+    - assets/images/Block/
+    - assets/images/Bush/
+    - assets/images/Button/
+    - assets/images/Cloud/
+    - assets/images/Coin/
+    - assets/images/Heart/
+    - assets/images/Ladder/
+    - assets/images/Monkeys/
+    - assets/images/Monkeys/Monkey1/
+    - assets/images/Platforms/
+    - assets/images/Spikes/
+    - assets/images/Tree/
+    - assets/images/Vine/
     - assets/images/sprites/
-    - assets/images/main_background.png
-    - assets/images/jungle_door.png
-    - assets/images/jungle_sign.png
     - assets/.env
 
   # To add assets to your application, add an assets section, like this:

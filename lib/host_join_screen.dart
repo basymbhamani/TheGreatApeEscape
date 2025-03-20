@@ -162,6 +162,7 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       match = await socket.createMatch();
+                      print(match.matchId);
                       Navigator.pop(context);
                       Navigator.push(
                         context,

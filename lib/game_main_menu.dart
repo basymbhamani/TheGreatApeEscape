@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nakama/nakama.dart'; // Add this for NakamaWebsocketClient
+import 'package:flame/game.dart';
 import 'game.dart';
 import 'pre_game_lobby.dart';
 
@@ -56,7 +57,16 @@ class GameMainMenu extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const StoryModeScreen(),
+                                  builder: (context) => GameWidget(
+                                    game: ApeEscapeGame(
+                                      socket: socket,
+                                      matchId: matchId,
+                                      session: session,
+                                    ),
+                                    backgroundBuilder: (context) => Container(
+                                      color: const Color(0xFF87CEEB),
+                                    ),
+                                  ),
                                 ),
                               );
                             },
@@ -146,30 +156,6 @@ class GameMainMenu extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class StoryModeScreen extends StatelessWidget {
-  const StoryModeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage("assets/images/main_background.png"),
-            fit: BoxFit.cover, // Ensures the image covers the whole screen
-          ),
-        ),
-        child: const Center(
-          child: Text(
-            'Story Mode',
-            style: TextStyle(fontSize: 24, color: Colors.white),
-          ),
-        ),
       ),
     );
   }

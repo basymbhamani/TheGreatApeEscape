@@ -1,43 +1,41 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'package:flutter/material.dart';
-import 'monkey.dart'; // Import Monkey for type checking
-import 'package:flame/flame.dart'; // Import Flame to load images
+import 'package:flame/game.dart';
+import 'game.dart';
+import 'monkey.dart';
+import 'package:flame/flame.dart';
 
 class Door extends SpriteComponent with CollisionCallbacks {
-  final Function() onPlayerEnter; // Callback for when the player enters the door
+  final Function() onPlayerEnter;
 
   Door(Vector2 position, {required this.onPlayerEnter})
       : super(
           position: position,
-          size: Vector2(220, 260), // Door size WH
+          size: Vector2(220, 260),
         );
 
   @override
   Future<void> onLoad() async {
     super.onLoad();
 
-    // Load the image and create a sprite for the door
-    final doorImage = await Flame.images.load('jungle_door.png'); // Load the image asset
+    final doorImage = await Flame.images.load('jungle_door.png');
 
-    // Check if image is loaded successfully
     if (doorImage != null) {
-      sprite = Sprite(doorImage); // Set the sprite for the door
+      sprite = Sprite(doorImage);
     } else {
       print('Failed to load door image!');
     }
 
-    // Add a hitbox for collision detection (smaller than the door)
-    final hitboxSize = Vector2(180, 200); // Adjusted hitbox size (width: 80, height: 200)
+    final hitboxSize = Vector2(180, 200);
     final hitboxOffset = Vector2(
-      (size.x - hitboxSize.x) / 2, // Center horizontally
-      size.y - hitboxSize.y, // Align hitbox to the bottom of the door
+      (size.x - hitboxSize.x) / 2,
+      size.y - hitboxSize.y,
     );
 
     add(
       RectangleHitbox(
         size: hitboxSize,
-        position: hitboxOffset, // Position the hitbox
+        position: hitboxOffset,
       )..collisionType = CollisionType.passive,
     );
   }
@@ -46,10 +44,9 @@ class Door extends SpriteComponent with CollisionCallbacks {
   void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
     super.onCollisionStart(intersectionPoints, other);
 
-    // Check if the player collides with the door
     if (other is Monkey) {
-      print("Door detected collision with monkey!"); // Debug
-      onPlayerEnter(); // Trigger the callback
+      print("Door detected collision with monkey!");
+      onPlayerEnter();
     }
   }
 }

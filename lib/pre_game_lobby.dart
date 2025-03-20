@@ -127,39 +127,58 @@ class LobbyGame extends ApeEscapeGame {
     camera.viewfinder.anchor = Anchor.topLeft;
     camera.viewfinder.zoom = 1.0;
 
-    final ground = RectangleComponent(
-      position: Vector2(0, 350),
-      size: Vector2(2856.0, 1280),
-      paint: Paint()..color = const Color(0xFF8B4513),
-      priority: 1,
+    // Initialize joystick
+    joystick = JoystickComponent(
+      knob: CircleComponent(
+        radius: size.y * 0.06,
+        paint: Paint()..color = const Color(0xFFAAAAAA).withOpacity(0.8),
+      ),
+      background: CircleComponent(
+        radius: size.y * 0.12,
+        paint: Paint()..color = const Color(0xFF444444).withOpacity(0.5),
+      ),
+      position: Vector2(size.x * 0.1, size.y * 0.7),
+      priority: 2,
     );
-    ground.add(RectangleHitbox()..collisionType = CollisionType.passive);
+    add(joystick);
+
+    // Create ground platform
+    final ground = Platform(
+      worldWidth: 2856.0,
+      height: 720.0,
+      numBlocks: 28,
+      startPosition: Vector2(0, gameHeight - Platform.platformSize),  // Position at bottom of screen
+      heightInBlocks: 2,  // Make it taller to ensure good collision
+    );
     add(ground);
 
+    // Create player with adjusted starting position
+    player = Monkey(
+      joystick,
+      2856.0,  // worldWidth (same as ground width)
+      720.0,   // gameHeight (from viewport)
+      playerId: session.userId,
+      isRemotePlayer: false,
+    )..position = Vector2(400, gameHeight - Platform.platformSize - 100);  // Position above ground
+    add(player);
+
+    // Create door
     final door = Door(
-      Vector2(700, 155),
+      Vector2(700, 300),
       onPlayerEnter: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (context) => GameMainMenu(
-                  matchId: code,
-                  socket: socket,
-                  session: session,
-                ),
+            builder: (context) => GameMainMenu(
+              matchId: code,
+              socket: socket,
+              session: session,
+            ),
           ),
         );
       },
     )..priority = 2;
     add(door);
-
-    await super.onLoad();
-
-    final oldPlatform = children.whereType<Platform>().firstOrNull;
-    if (oldPlatform != null) {
-      remove(oldPlatform);
-    }
 
     // Get our own user ID from the session
     _ownUserId = session.userId;
@@ -241,6 +260,8 @@ class LobbyGame extends ApeEscapeGame {
       print("Adding remote player: $playerId");
       final remotePlayer = Monkey(
         null,
+        2856.0,  // worldWidth (same as ground width)
+        720.0,   // gameHeight (from viewport)
         playerId: playerId,
         isRemotePlayer: true,
       )..position = Vector2(400, 200);
