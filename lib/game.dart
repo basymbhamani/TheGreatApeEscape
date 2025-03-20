@@ -24,6 +24,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection {
   @override
   Future<void> onLoad() async {
     debugMode = false;
+    camera.debugMode = false;
 
     // Configure world bounds with adaptive viewport
     camera.viewport = FixedResolutionViewport(
@@ -47,11 +48,12 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection {
       ),
       margin: const EdgeInsets.only(left: 30, top: 225),
       priority: 1,
-    );
+    )..debugMode = false;
     add(joystick);
 
     // Then create player after joystick is initialized
-    player = Monkey(joystick, playerId: matchId)..position = Vector2(400, 200);
+    player = Monkey(null, playerId: matchId, joystick: joystick)
+      ..position = Vector2(400, 200);
     add(player);
 
     // Jump button - positioned near monkey
@@ -64,7 +66,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection {
         position: Vector2(600, 200),
         priority: 1,
         onPressed: player.jump,
-      ),
+      )..debugMode = false,
     );
 
     // Set up match state handling if in multiplayer mode
@@ -110,6 +112,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection {
         null,
         playerId: playerId,
         isRemotePlayer: true,
+        joystick: null,
       )..position = Vector2(400, 200);
       add(remotePlayer);
       remotePlayers[playerId] = remotePlayer;

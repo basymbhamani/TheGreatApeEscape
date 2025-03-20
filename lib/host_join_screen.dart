@@ -162,6 +162,7 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       match = await socket.createMatch();
+                      print("Match created: ${match.matchId}");
                       Navigator.pop(context);
                       Navigator.push(
                         context,
@@ -172,6 +173,7 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
                                 socket: socket,
                                 isHost: true,
                                 session: widget.session,
+                                groupName: _groupNameController.text.trim(),
                               ),
                         ),
                       );

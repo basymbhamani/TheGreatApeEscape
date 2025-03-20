@@ -5,7 +5,8 @@ import 'monkey.dart'; // Import Monkey for type checking
 import 'package:flame/flame.dart'; // Import Flame to load images
 
 class Door extends SpriteComponent with CollisionCallbacks {
-  final Function() onPlayerEnter; // Callback for when the player enters the door
+  final Function()
+  onPlayerEnter; // Callback for when the player enters the door
 
   Door(Vector2 position, {required this.onPlayerEnter})
       : super(
@@ -16,6 +17,7 @@ class Door extends SpriteComponent with CollisionCallbacks {
   @override
   Future<void> onLoad() async {
     super.onLoad();
+    debugMode = false;
 
     // Load the image and create a sprite for the door
     final doorImage = await Flame.images.load('jungle_door.png'); // Load the image asset
@@ -36,14 +38,19 @@ class Door extends SpriteComponent with CollisionCallbacks {
 
     add(
       RectangleHitbox(
-        size: hitboxSize,
-        position: hitboxOffset, // Position the hitbox
-      )..collisionType = CollisionType.passive,
+          size: hitboxSize,
+          position: hitboxOffset, // Position the hitbox
+        )
+        ..collisionType = CollisionType.passive
+        ..debugMode = false,
     );
   }
 
   @override
-  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+  void onCollisionStart(
+    Set<Vector2> intersectionPoints,
+    PositionComponent other,
+  ) {
     super.onCollisionStart(intersectionPoints, other);
 
     // Check if the player collides with the door

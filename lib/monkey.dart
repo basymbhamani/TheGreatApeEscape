@@ -1,34 +1,45 @@
+import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
+import 'package:flame/input.dart';
+import 'game.dart';
 import 'platform.dart';
 import 'door.dart'; // Import Door for type checking
 
 class Monkey extends SpriteAnimationComponent
-    with HasGameRef, CollisionCallbacks {
-  final JoystickComponent?
-  joystick; // Make joystick optional for remote players
+    with HasGameRef<ApeEscapeGame>, CollisionCallbacks {
+  final String? playerId;
+  final bool isRemotePlayer;
+  final JoystickComponent? joystick;
+  bool _isGrounded = false;
+  bool _isMoving = false;
+  bool _isJumping = false;
+  bool _isVisible = true;
+  bool visible = true;
+  double _jumpVelocity = 0;
   Vector2 velocity = Vector2.zero();
   double gravity = 500;
-  bool _isGrounded = false;
   final double _animationSpeed = 0.1;
-  final String? playerId; // Add player ID for multiplayer
-  bool isRemotePlayer; // Flag to identify remote players
-  bool _isVisible = true;
 
-  // Public setter for _isGrounded
-  set isGrounded(bool value) {
-    _isGrounded = value;
-  }
-
-  // Public getter for _isGrounded (optional, if needed elsewhere)
-  bool get isGrounded => _isGrounded;
-  bool get isVisible => _isVisible;
+  static const double _jumpForce = -400;
+  static const double _gravity = 800;
+  static const double _moveSpeed = 200;
 
   late final SpriteAnimation idleAnimation;
   late final SpriteAnimation runAnimation;
   late final SpriteAnimation jumpAnimation;
 
-  Monkey(this.joystick, {this.playerId, this.isRemotePlayer = false});
+  // Public getters and setters
+  bool get isGrounded => _isGrounded;
+  set isGrounded(bool value) => _isGrounded = value;
+  bool get isVisible => _isVisible;
+
+  Monkey(
+    SpriteAnimation? animation, {
+    this.playerId,
+    this.isRemotePlayer = false,
+    this.joystick,
+  }) : super(animation: animation);
 
   @override
   Future<void> onLoad() async {
@@ -54,7 +65,8 @@ class Monkey extends SpriteAnimationComponent
 
     size = Vector2(150, 150);
     position = Vector2(400, 200); // Start at a consistent position
-    add(RectangleHitbox());
+    debugMode = false;
+    add(RectangleHitbox()..debugMode = false);
     anchor = Anchor.center;
 
     // Set initial visibility
@@ -145,5 +157,11 @@ class Monkey extends SpriteAnimationComponent
         scale.x = -1;
       }
     }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (!visible) return;
+    super.render(canvas);
   }
 }

@@ -69,6 +69,8 @@ flutter:
     - assets/images/main_background.png
     - assets/images/jungle_door.png
     - assets/images/jungle_sign.png
+    - assets/images/apetitle.png
+    - assets/images/sprites/grass_platform.png
     - assets/.env
 
   # To add assets to your application, add an assets section, like this:

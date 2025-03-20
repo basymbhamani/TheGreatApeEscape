@@ -58,39 +58,45 @@ class PreGameLobby extends StatelessWidget {
                   Text(
                     groupName,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
+                      color: Colors.black,
                     ),
                   ),
-                  Text('Code: $code', style: const TextStyle(fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Code: $code',
+                    style: const TextStyle(fontSize: 20, color: Colors.black),
+                  ),
                 ],
               ),
             ),
             const Positioned(
-              top: 20,
+              top: 5,
               left: 20,
               child: Text(
-                'Ready: 0/1',
+                '.',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
             Positioned(
-              top: 15,
+              top: 5,
               left: 0,
               right: 0,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  Text(
-                    'APE ESCAPE',
-                    style: TextStyle(fontSize: 87, fontWeight: FontWeight.bold),
+                  Image.asset(
+                    'assets/images/apetitle.png',
+                    width: 1000,
+                    height: 250,
                   ),
                   Transform.translate(
                     offset: Offset(0, -20),
-                    child: Text(
-                      'Walk in to start',
-                      style: TextStyle(fontSize: 44),
-                    ),
+                    // child: Text(
+                    //   'Walk in to start',
+                    //   style: TextStyle(fontSize: 44),
+                    // ),
                   ),
                 ],
               ),
@@ -127,17 +133,30 @@ class LobbyGame extends ApeEscapeGame {
     camera.viewfinder.anchor = Anchor.topLeft;
     camera.viewfinder.zoom = 1.0;
 
-    final ground = RectangleComponent(
-      position: Vector2(0, 350),
-      size: Vector2(2856.0, 1280),
-      paint: Paint()..color = const Color(0xFF8B4513),
-      priority: 1,
-    );
-    ground.add(RectangleHitbox()..collisionType = CollisionType.passive);
-    add(ground);
+    // Add ground platform sprites
+    final groundSprite = await Sprite.load('sprites/grass_platform.png');
+    final platformWidth = 128.0; // Width of each platform block
+    final numPlatforms =
+        (2856.0 / platformWidth).ceil(); // Number of platforms needed
+    final platformY = 400.0; // Adjusted Y position for platforms
+
+    for (var i = 0; i < numPlatforms; i++) {
+      final platform = SpriteComponent(
+        sprite: groundSprite,
+        position: Vector2(i * platformWidth, platformY),
+        size: Vector2(platformWidth, 128),
+      )..debugMode = false;
+
+      platform.add(
+        RectangleHitbox()
+          ..collisionType = CollisionType.passive
+          ..debugMode = false,
+      );
+      add(platform);
+    }
 
     final door = Door(
-      Vector2(700, 155),
+      Vector2(700, 155), // Position door on top of platform
       onPlayerEnter: () {
         Navigator.push(
           context,
@@ -156,11 +175,6 @@ class LobbyGame extends ApeEscapeGame {
 
     await super.onLoad();
 
-    final oldPlatform = children.whereType<Platform>().firstOrNull;
-    if (oldPlatform != null) {
-      remove(oldPlatform);
-    }
-
     // Get our own user ID from the session
     _ownUserId = session.userId;
     print("Own user ID: $_ownUserId");
@@ -169,14 +183,12 @@ class LobbyGame extends ApeEscapeGame {
     socket.onMatchData.listen(_handleMatchData);
     socket.onMatchPresence.listen(_handleMatchPresence);
 
-    debugMode = true;
+    debugMode = false;
+    camera.debugMode = false;
     print("LobbyGame size: ${size}");
-    print("Ground position: ${ground.position}, size: ${ground.size}");
     print("Door position: ${door.position}, size: ${door.size}");
     print("Player position: ${player.position}, size: ${player.size}");
-    print(
-      "Joystick position: ${joystick.position}, margin: ${joystick.margin}",
-    );
+    print("Joystick position: ${joystick.position}");
   }
 
   void _handleMatchPresence(MatchPresenceEvent event) {

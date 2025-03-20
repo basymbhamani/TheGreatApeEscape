@@ -9,7 +9,11 @@ class Platform extends PositionComponent with CollisionCallbacks {
 
   @override
   Future<void> onLoad() async {
-    add(RectangleHitbox()..collisionType = CollisionType.passive);
-    debugMode = false; // Set to `true` to visualize collision hitboxes
+    debugMode = false;
+    add(
+      RectangleHitbox()
+        ..collisionType = CollisionType.passive
+        ..debugMode = false,
+    );
   }
 }
