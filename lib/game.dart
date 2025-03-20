@@ -37,7 +37,7 @@ class ApeEscapeGame extends FlameGame
   final String? matchId;
   final Session? session;
   final Map<String, Monkey> remotePlayers = {};
-  static const updateRate = 1.0 / 5.0; // 5 updates per second
+  static const updateRate = 1.0 / 30.0; // 30 updates per second
   double _timeSinceLastUpdate = 0.0;
 
   // Debug mode
