@@ -80,7 +80,7 @@ class PreGameLobby extends StatelessWidget {
               ),
             ),
             Positioned(
-              top: 5,
+              top: 70,
               left: 0,
               right: 0,
               child: Column(
@@ -156,7 +156,7 @@ class LobbyGame extends ApeEscapeGame {
     }
 
     final door = Door(
-      Vector2(700, 155), // Position door on top of platform
+      Vector2(600, 205), // Position door on top of platform
       onPlayerEnter: () {
         Navigator.push(
           context,

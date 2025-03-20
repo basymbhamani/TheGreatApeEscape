@@ -46,7 +46,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection {
         radius: 50,
         paint: Paint()..color = const Color(0xFF444444),
       ),
-      margin: const EdgeInsets.only(left: 30, top: 225),
+      margin: const EdgeInsets.only(left: 30, top: 285),
       priority: 1,
     )..debugMode = false;
     add(joystick);
@@ -61,9 +61,9 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection {
       HudButtonComponent(
         button: CircleComponent(
           radius: 40,
-          paint: Paint()..color = const Color(0xFF00FF00),
+          paint: Paint()..color = const Color.fromARGB(161, 255, 119, 0),
         ),
-        position: Vector2(600, 200),
+        position: Vector2(800, 300),
         priority: 1,
         onPressed: player.jump,
       )..debugMode = false,
