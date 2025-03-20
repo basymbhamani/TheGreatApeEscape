@@ -7,24 +7,37 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:the_great_ape_escape/main.dart';
+import 'package:the_great_ape_escape/host_join_screen.dart';
+import 'package:nakama/nakama.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('HostJoinScreen smoke test', (WidgetTester tester) async {
+    // Create a mock NakamaClient and Session
+    final mockClient = NakamaClient(
+      host: 'localhost',
+      ssl: false,
+      serverKey: 'defaultkey',
+      grpcPort: 7349,
+      httpPort: 7350,
+    );
+    final mockSession = Session(
+      token: 'mock-token',
+      refreshToken: 'mock-refresh-token',
+      userId: 'mock-user-id',
+      username: 'mock-username',
+      created: true,
+      expiresAt: DateTime.now().add(const Duration(hours: 1)),
+    );
+
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HostJoinScreen(nakamaClient: mockClient, session: mockSession),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that the screen is rendered
+    expect(find.byType(HostJoinScreen), findsOneWidget);
   });
 }

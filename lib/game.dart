@@ -25,7 +25,8 @@ import 'timer_component.dart';
 import 'door.dart';
 import 'dart:convert';
 
-class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents {
+class ApeEscapeGame extends FlameGame
+    with HasCollisionDetection, KeyboardEvents {
   late final JoystickComponent joystick;
   late final Monkey player;
   late final double gameWidth;
@@ -51,12 +52,14 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
   ApeEscapeGame({this.socket, this.matchId, this.session}) {
     gameLayer = PositionComponent();
     add(gameLayer);
-    gameWidth = 1280.0;  // Default viewport width
-    gameHeight = 720.0;  // Default viewport height
   }
 
   @override
   Future<void> onLoad() async {
+    // Get actual screen dimensions
+    gameWidth = size.x;
+    gameHeight = size.y;
+
     // Set up camera and viewport
     camera.viewport = FixedResolutionViewport(
       resolution: Vector2(gameWidth, gameHeight),
@@ -100,7 +103,10 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
       worldWidth: worldWidth,
       height: gameHeight,
       numBlocks: 3,
-      startPosition: Vector2(Platform.platformSize * 8, gameHeight - Platform.platformSize * 2),
+      startPosition: Vector2(
+        Platform.platformSize * 8,
+        gameHeight - Platform.platformSize * 2,
+      ),
       heightInBlocks: 2,
     );
     gameLayer.add(higherPlatform);
@@ -110,7 +116,10 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
       worldWidth: worldWidth,
       height: gameHeight,
       numBlocks: 6,
-      startPosition: Vector2(Platform.platformSize * 8, gameHeight - Platform.platformSize * 5.4 + 10),
+      startPosition: Vector2(
+        Platform.platformSize * 8,
+        gameHeight - Platform.platformSize * 5.4 + 10,
+      ),
       heightInBlocks: 1,
     );
     gameLayer.add(topPlatform);
@@ -207,10 +216,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
       final cloud = Cloud(
         worldWidth: worldWidth,
         height: gameHeight,
-        startPosition: Vector2(
-          cloudStartX + (cloudSpacing * i),
-          cloudY,
-        ),
+        startPosition: Vector2(cloudStartX + (cloudSpacing * i), cloudY),
         numBlocks: 3,
       );
       gameLayer.add(cloud);
@@ -222,12 +228,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
     final blockStartX = cloudStartX + (cloudSpacing * 2);
 
     // Add single block group
-    final blocks = GameBlock(
-      startPosition: Vector2(
-        blockStartX,
-        blocksY,
-      ),
-    );
+    final blocks = GameBlock(startPosition: Vector2(blockStartX, blocksY));
     gameLayer.add(blocks);
 
     // Add bush near the top of the screen
@@ -374,7 +375,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
     final finalPlatformStartX = blockStartX + (Platform.platformSize * 90);
     final remainingDistance = worldWidth - finalPlatformStartX;
     final numBlocksNeeded = (remainingDistance / Platform.platformSize).ceil();
-    
+
     final finalPlatform = Platform(
       worldWidth: worldWidth,
       height: gameHeight,
@@ -401,10 +402,22 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
     int coinsCollected = 0;
     final totalCoins = 4;
     final coinPositions = [
-      Vector2(blockStartX + (Platform.platformSize * 67), gameHeight - Platform.platformSize * 6),
-      Vector2(blockStartX + (Platform.platformSize * 71), gameHeight - Platform.platformSize * 4),
-      Vector2(blockStartX + (Platform.platformSize * 67), gameHeight - Platform.platformSize * 2),
-      Vector2(blockStartX + (Platform.platformSize * 63), gameHeight - Platform.platformSize * 4),
+      Vector2(
+        blockStartX + (Platform.platformSize * 67),
+        gameHeight - Platform.platformSize * 6,
+      ),
+      Vector2(
+        blockStartX + (Platform.platformSize * 71),
+        gameHeight - Platform.platformSize * 4,
+      ),
+      Vector2(
+        blockStartX + (Platform.platformSize * 67),
+        gameHeight - Platform.platformSize * 2,
+      ),
+      Vector2(
+        blockStartX + (Platform.platformSize * 63),
+        gameHeight - Platform.platformSize * 4,
+      ),
     ];
 
     // Add coins
@@ -447,9 +460,10 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
     add(joystick);
 
     // Create player
-    player = Monkey(joystick, worldWidth, gameHeight)
-      ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
-      ..priority = 2;
+    player =
+        Monkey(joystick, worldWidth, gameHeight)
+          ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
+          ..priority = 2;
     gameLayer.add(player);
 
     // Set up multiplayer listeners if socket is provided
@@ -462,40 +476,43 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
               print('Received null raw data');
               return;
             }
-            
-            final data = jsonDecode(String.fromCharCodes(rawData)) as Map<String, dynamic>;
+
+            final data =
+                jsonDecode(String.fromCharCodes(rawData))
+                    as Map<String, dynamic>;
             print('Raw data received: $data');
-            
+
             final playerId = data['playerId'] as String?;
             if (playerId == null) {
               print('No playerId in data');
               return;
             }
-            
+
             if (playerId == session!.userId) {
               print('Ignoring own update');
               return;
             }
-            
+
             print('Processing update from player: $playerId');
-            
+
             final x = (data['x'] as num?)?.toDouble();
             final y = (data['y'] as num?)?.toDouble();
-            
+
             if (x == null || y == null) {
               print('Invalid position data: x=$x, y=$y');
               return;
             }
-            
+
             final isMoving = data['isMoving'] as bool? ?? false;
             final isJumping = data['isJumping'] as bool? ?? false;
             final scaleX = (data['scaleX'] as num?)?.toDouble() ?? 1.0;
 
-      if (!remotePlayers.containsKey(playerId)) {
+            if (!remotePlayers.containsKey(playerId)) {
               print('Creating new remote player: $playerId');
-              final remotePlayer = Monkey(null, worldWidth, gameHeight)
-                ..position = Vector2(x, y)
-                ..priority = 2;
+              final remotePlayer =
+                  Monkey(null, worldWidth, gameHeight)
+                    ..position = Vector2(x, y)
+                    ..priority = 2;
               remotePlayers[playerId] = remotePlayer;
               gameLayer.add(remotePlayer);
             } else {
@@ -503,10 +520,10 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
               final remotePlayer = remotePlayers[playerId]!;
               remotePlayer.updateRemoteState(
                 Vector2(x, y),
-        isMoving,
-        isJumping,
-        scaleX,
-      );
+                isMoving,
+                isJumping,
+                scaleX,
+              );
             }
           } catch (e, stackTrace) {
             print('Error processing match data: $e');
@@ -540,25 +557,32 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
     super.update(dt);
 
     // Calculate the camera window boundaries
-    final windowLeft = -gameLayer.position.x + gameWidth * cameraWindowMarginRatio;
-    final windowRight = -gameLayer.position.x + gameWidth * (1 - cameraWindowMarginRatio);
+    final windowLeft =
+        -gameLayer.position.x + gameWidth * cameraWindowMarginRatio;
+    final windowRight =
+        -gameLayer.position.x + gameWidth * (1 - cameraWindowMarginRatio);
 
     // Check if player is outside the camera window
     if (player.position.x < windowLeft) {
-      gameLayer.position.x = -(player.position.x - gameWidth * cameraWindowMarginRatio);
+      gameLayer.position.x =
+          -(player.position.x - gameWidth * cameraWindowMarginRatio);
     } else if (player.position.x > windowRight) {
-      gameLayer.position.x = -(player.position.x - gameWidth * (1 - cameraWindowMarginRatio));
+      gameLayer.position.x =
+          -(player.position.x - gameWidth * (1 - cameraWindowMarginRatio));
     }
 
     // Clamp game layer position to world boundaries
-    gameLayer.position.x = gameLayer.position.x.clamp(-(worldWidth - gameWidth), 0);
+    gameLayer.position.x = gameLayer.position.x.clamp(
+      -(worldWidth - gameWidth),
+      0,
+    );
 
     // Send player position updates in multiplayer mode
     if (socket != null && matchId != null && session != null) {
       _timeSinceLastUpdate += dt;
       if (_timeSinceLastUpdate >= updateRate) {
         _timeSinceLastUpdate = 0;
-        
+
         final data = {
           'playerId': session!.userId,
           'x': player.position.x,
@@ -567,7 +591,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
           'isJumping': !player.isGrounded,
           'scaleX': player.scale.x,
         };
-        
+
         socket!.sendMatchData(
           matchId: matchId!,
           opCode: 1,
