@@ -41,7 +41,7 @@ class ApeEscapeGame extends FlameGame
   double _timeSinceLastUpdate = 0.0;
 
   // Debug mode
-  static bool showHitboxes = true;
+  static bool showHitboxes = false;
 
   // World boundaries
   static const worldWidth = 8500.0;
