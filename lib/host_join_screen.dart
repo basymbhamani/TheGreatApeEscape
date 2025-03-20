@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:nakama/nakama.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'pre_game_lobby.dart'; // Import the PreGameLobby screen
+import 'package:flame/game.dart';
+import 'game.dart';
 
 class HostJoinScreen extends StatefulWidget {
   final NakamaBaseClient nakamaClient;
@@ -168,11 +170,16 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
                         context,
                         MaterialPageRoute(
                           builder:
-                              (context) => PreGameLobby(
-                                code: match.matchId,
-                                socket: socket,
-                                isHost: true,
-                                session: widget.session,
+                              (context) => GameWidget(
+                                game: ApeEscapeGame(
+                                  socket: socket,
+                                  matchId: match.matchId,
+                                  session: widget.session,
+                                ),
+                                backgroundBuilder:
+                                    (context) => Container(
+                                      color: const Color(0xFF87CEEB),
+                                    ),
                               ),
                         ),
                       );
@@ -267,11 +274,16 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
                           context,
                           MaterialPageRoute(
                             builder:
-                                (context) => PreGameLobby(
-                                  code: match.matchId,
-                                  socket: socket,
-                                  isHost: false,
-                                  session: widget.session,
+                                (context) => GameWidget(
+                                  game: ApeEscapeGame(
+                                    socket: socket,
+                                    matchId: match.matchId,
+                                    session: widget.session,
+                                  ),
+                                  backgroundBuilder:
+                                      (context) => Container(
+                                        color: const Color(0xFF87CEEB),
+                                      ),
                                 ),
                           ),
                         );

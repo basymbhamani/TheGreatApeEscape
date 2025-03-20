@@ -160,8 +160,8 @@ class Monkey extends SpriteAnimationComponent
     size = Vector2(worldHeight * 0.25, worldHeight * 0.25);
     
     final hitbox = RectangleHitbox(
-      size: Vector2(size.x * 0.4, size.y * 0.1),
-      position: Vector2(size.x * 0.3, size.y * 0.9),
+      size: Vector2(size.x * 0.6, size.y * 0.3),
+      position: Vector2(size.x * 0.2, size.y * 0.7),
       collisionType: CollisionType.active,
     )..debugMode = ApeEscapeGame.showHitboxes;
     add(hitbox);
@@ -169,8 +169,11 @@ class Monkey extends SpriteAnimationComponent
     anchor = Anchor.center;
 
     _spawnPosition = position.clone();
-
     _isVisible = true;
+
+    // Ensure the monkey is grounded on spawn
+    _isGrounded = true;
+    velocity.y = 0;
   }
 
   @override
@@ -182,7 +185,9 @@ class Monkey extends SpriteAnimationComponent
       _isGrounded = false;
       animation = jumpAnimation;
     } else if (other is Platform && !_isDead) {
-      if (intersectionPoints.first.y > other.position.y) {
+      if (position.y + size.y / 2 > other.position.y && 
+          position.y + size.y / 2 < other.position.y + 20 &&
+          velocity.y > 0) {
         _isGrounded = true;
         velocity.y = 0;
         position.y = other.position.y - size.y / 2;

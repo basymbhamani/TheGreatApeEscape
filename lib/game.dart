@@ -448,7 +448,7 @@ class ApeEscapeGame extends FlameGame with HasCollisionDetection, KeyboardEvents
 
     // Create player
     player = Monkey(joystick, worldWidth, gameHeight)
-      ..position = Vector2(200, gameHeight - Platform.platformSize - (gameHeight * 0.25) - 300)
+      ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
       ..priority = 2;
     gameLayer.add(player);
 
