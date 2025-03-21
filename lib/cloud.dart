@@ -45,7 +45,7 @@ class Cloud extends Platform {
     // Add collision hitbox that matches the cloud's total height
     add(RectangleHitbox(
       size: Vector2(Platform.platformSize * numBlocks - 30, Platform.platformSize * 0.6), // Increased height further
-      position: Vector2(0, 20), // Moved up more to better match visual cloud
+      position: Vector2(0, 56), // Moved up more to better match visual cloud
       collisionType: CollisionType.passive, // Changed back to passive
     )..debugMode = ApeEscapeGame.showHitboxes);
   }

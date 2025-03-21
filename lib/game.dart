@@ -37,7 +37,7 @@ class ApeEscapeGame extends FlameGame
   final String? matchId;
   final Session? session;
   final Map<String, Monkey> remotePlayers = {};
-  static const updateRate = 1.0 / 30.0; // 30 updates per second
+  static const updateRate = 1.0 / 60.0; // 30 updates per second
   double _timeSinceLastUpdate = 0.0;
 
   // Debug mode
@@ -510,7 +510,13 @@ class ApeEscapeGame extends FlameGame
             if (!remotePlayers.containsKey(playerId)) {
               print('Creating new remote player: $playerId');
               final remotePlayer =
-                  Monkey(null, worldWidth, gameHeight)
+                  Monkey(
+                      null,
+                      worldWidth,
+                      gameHeight,
+                      playerId: playerId,
+                      isRemotePlayer: true,
+                    )
                     ..position = Vector2(x, y)
                     ..priority = 2;
               remotePlayers[playerId] = remotePlayer;

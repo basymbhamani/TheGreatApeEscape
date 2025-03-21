@@ -86,10 +86,12 @@ class Monkey extends SpriteAnimationComponent
     _isBlockedByBush = false;
     _currentVine = null;
     _currentPlatform = null;
-    position = checkpointPosition ?? Vector2(
-      200,
-      worldHeight - Platform.platformSize - (worldHeight * 0.25) - 300,
-    );
+    position =
+        checkpointPosition ??
+        Vector2(
+          200,
+          worldHeight - Platform.platformSize - (worldHeight * 0.25) - 300,
+        );
     opacity = 1.0;
     animation = idleAnimation;
     _onReset?.call();
@@ -109,22 +111,34 @@ class Monkey extends SpriteAnimationComponent
     animation = idleAnimation;
   }
 
-  void updateRemoteState(Vector2 newPosition, bool isMoving, bool isJumping, double scaleX) {
+  void updateRemoteState(
+    Vector2 newPosition,
+    bool isMoving,
+    bool isJumping,
+    double scaleX,
+  ) {
     if (!_isVisible) {
       _isVisible = true;
     }
 
     position = newPosition;
     scale.x = scaleX;
+
+    // Update grounded state based on jumping
+    _isGrounded = !isJumping;
+
+    // Update animation based on state
     if (isJumping) {
       animation = jumpAnimation;
+    } else if (isMoving) {
+      animation = runAnimation;
     } else {
-      animation = isMoving ? runAnimation : idleAnimation;
+      animation = idleAnimation;
     }
   }
 
   void jump() {
-    if (_isGrounded) {
+    if (_isGrounded && !_isDead) {
       velocity.y = -300;
       _isGrounded = false;
       animation = jumpAnimation;
@@ -143,7 +157,10 @@ class Monkey extends SpriteAnimationComponent
   @override
   Future<void> onLoad() async {
     final runSprites = await Future.wait(
-      List.generate(6, (index) => Sprite.load('Monkeys/Monkey1/sprite_$index.png')),
+      List.generate(
+        6,
+        (index) => Sprite.load('Monkeys/Monkey1/sprite_$index.png'),
+      ),
     );
 
     final jumpSprite = await Sprite.load('Monkeys/Monkey1/sprite_jump.png');
@@ -159,7 +176,7 @@ class Monkey extends SpriteAnimationComponent
     animation = idleAnimation;
 
     size = Vector2(worldHeight * 0.25, worldHeight * 0.25);
-    
+
     final hitbox = RectangleHitbox(
       size: Vector2(size.x * 0.6, size.y * 0.3),
       position: Vector2(size.x * 0.2, size.y * 0.7),
@@ -178,7 +195,10 @@ class Monkey extends SpriteAnimationComponent
   }
 
   @override
-  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+  void onCollisionStart(
+    Set<Vector2> intersectionPoints,
+    PositionComponent other,
+  ) {
     if (other is Bush) {
       _isBlockedByBush = true;
     } else if (other is Mushroom) {
@@ -186,35 +206,39 @@ class Monkey extends SpriteAnimationComponent
       _isGrounded = false;
       animation = jumpAnimation;
     } else if (other is Platform && !_isDead) {
-      if (position.y + size.y / 2 > other.position.y && 
+      if (position.y + size.y / 2 > other.position.y &&
           position.y + size.y / 2 < other.position.y + 20 &&
           velocity.y > 0) {
         _isGrounded = true;
         velocity.y = 0;
         position.y = other.position.y - size.y / 2;
-        animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
+        animation =
+            (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
       }
     } else if (other is MovingPlatform && !_isDead) {
       _isGrounded = true;
       velocity.y = 0;
       position.y = other.position.y - size.y / 2;
       _currentPlatform = other;
-      animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
+      animation =
+          (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
     } else if (other is RectangularMovingPlatform && !_isDead) {
       _isGrounded = true;
       velocity.y = 0;
       position.y = other.position.y - size.y / 2;
       _currentPlatform = other;
-      animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
+      animation =
+          (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
     } else if (other is Cloud && !_isDead) {
-      if (position.y + size.y / 2 > other.position.y && 
+      if (position.y + size.y / 2 > other.position.y &&
           position.y + size.y / 2 < other.position.y + 20 &&
           velocity.y > 0) {
         _isGrounded = true;
         velocity.y = 0;
         //position.y = other.position.y - size.y / 2;
         _currentPlatform = other;
-        animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
+        animation =
+            (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
       }
     } else if (other is Vine) {
       _currentVine = other;
@@ -228,15 +252,18 @@ class Monkey extends SpriteAnimationComponent
     } else if (other is Monkey && !_isDead && !other.isDead) {
       // Handle monkey-to-monkey collisions
       final verticalDiff = (position.y + size.y / 2) - other.position.y;
-      
+
       if (verticalDiff > 0 && verticalDiff < size.y * 0.4 && velocity.y >= 0) {
         // Landing on top of another monkey - snap to position
         _isGrounded = true;
         velocity.y = 0;
         position.y = other.position.y - size.y * 0.5;
         _currentPlatform = other;
-        animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
-      } else if (verticalDiff < 0 && -verticalDiff < size.y * 0.4 && other.velocity.y >= 0) {
+        animation =
+            (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
+      } else if (verticalDiff < 0 &&
+          -verticalDiff < size.y * 0.4 &&
+          other.velocity.y >= 0) {
         // Other monkey landing on top
         other.isGrounded = true;
         other.velocity.y = 0;
@@ -302,7 +329,7 @@ class Monkey extends SpriteAnimationComponent
           _blinkTimer = 0;
           opacity = opacity == 1.0 ? 0.0 : 1.0;
           _blinkCount++;
-          
+
           if (_blinkCount >= _totalBlinks) {
             _isBlinking = false;
             opacity = 0.0;
@@ -314,7 +341,8 @@ class Monkey extends SpriteAnimationComponent
     }
 
     final bool isMoving = (joystick?.delta.x.abs() ?? 0) > 0;
-    final bool isClimbingInput = _currentVine != null && (joystick?.delta.y ?? 0) < 0;
+    final bool isClimbingInput =
+        _currentVine != null && (joystick?.delta.y ?? 0) < 0;
 
     if (isClimbingInput) {
       _isClimbing = true;
@@ -323,10 +351,6 @@ class Monkey extends SpriteAnimationComponent
     } else if (_isClimbing) {
       _isClimbing = false;
       velocity.y = 0;
-    }
-
-    if (_isGrounded && !_isClimbing) {
-      animation = isMoving ? runAnimation : idleAnimation;
     }
 
     if (!_isClimbing) {
@@ -342,7 +366,10 @@ class Monkey extends SpriteAnimationComponent
 
       if (_currentPlatform != null && _isGrounded) {
         if (_currentPlatform is MovingPlatform) {
-          velocity.x += (_currentPlatform as MovingPlatform).moveSpeed * (_currentPlatform as MovingPlatform).direction * dt;
+          velocity.x +=
+              (_currentPlatform as MovingPlatform).moveSpeed *
+              (_currentPlatform as MovingPlatform).direction *
+              dt;
         } else if (_currentPlatform is RectangularMovingPlatform) {
           final platform = _currentPlatform as RectangularMovingPlatform;
           final toTarget = platform.currentTarget - platform.position;
@@ -353,7 +380,6 @@ class Monkey extends SpriteAnimationComponent
             velocity.y = 0;
           }
         } else if (_currentPlatform is Monkey) {
-          // When standing on another monkey, maintain exact position
           position.y = _currentPlatform!.position.y - size.y * 0.5;
           velocity.y = 0;
         }
@@ -365,12 +391,14 @@ class Monkey extends SpriteAnimationComponent
     if (!_isGrounded && !_isClimbing) {
       velocity.y += gravity * dt;
       position.y += velocity.y * dt;
+      animation = jumpAnimation;
     } else if (_currentPlatform is Monkey) {
-      // When standing on another monkey, maintain exact position
       position.y = _currentPlatform!.position.y - size.y * 0.5;
       velocity.y = 0;
+      animation = isMoving ? runAnimation : idleAnimation;
     } else {
       position.y += velocity.y * dt;
+      animation = isMoving ? runAnimation : idleAnimation;
     }
 
     position.x = position.x.clamp(0, worldWidth - size.x);
@@ -378,8 +406,6 @@ class Monkey extends SpriteAnimationComponent
     if (position.y > worldHeight - 55) {
       die();
     }
-
-    animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
 
     if ((joystick?.delta.x ?? 0) > 0) {
       scale.x = 1;
