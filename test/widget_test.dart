@@ -14,7 +14,7 @@ import 'package:nakama/nakama.dart';
 void main() {
   testWidgets('HostJoinScreen smoke test', (WidgetTester tester) async {
     // Create a mock NakamaClient and Session
-    final mockClient = NakamaClient(
+    final mockClient = getNakamaClient(
       host: 'localhost',
       ssl: false,
       serverKey: 'defaultkey',
@@ -25,9 +25,10 @@ void main() {
       token: 'mock-token',
       refreshToken: 'mock-refresh-token',
       userId: 'mock-user-id',
-      username: 'mock-username',
       created: true,
       expiresAt: DateTime.now().add(const Duration(hours: 1)),
+      vars: {},
+      refreshExpiresAt: DateTime.now().add(const Duration(hours: 2)),
     );
 
     // Build our app and trigger a frame.
