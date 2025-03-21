@@ -462,7 +462,7 @@ class ApeEscapeGame extends FlameGame
     // Create player
     player =
         Monkey(joystick, worldWidth, gameHeight)
-          ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
+          ..position = Vector2(200, gameHeight - Platform.platformSize * 2 + 5)
           ..priority = 2;
     gameLayer.add(player);
 
