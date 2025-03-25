@@ -1,2 +1,0 @@
-// Fixed platform offset for multiplayer synchronization
-static const double platformYOffset = 0.0;
