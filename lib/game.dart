@@ -60,37 +60,21 @@ class ApeEscapeGame extends FlameGame
     gameWidth = size.x;
     gameHeight = size.y;
 
-    // Calculate the target resolution based on aspect ratio
-    final targetAspectRatio = 16 / 9; // Standard widescreen aspect ratio
-    final screenAspectRatio = gameWidth / gameHeight;
-    
-    Vector2 targetResolution;
-    if (screenAspectRatio > targetAspectRatio) {
-      // Screen is wider than target
-      targetResolution = Vector2(gameHeight * targetAspectRatio, gameHeight);
-    } else {
-      // Screen is taller than target
-      targetResolution = Vector2(gameWidth, gameWidth / targetAspectRatio);
-    }
-
-    // Set up camera and viewport with fixed aspect ratio
+    // Set up camera and viewport
     camera.viewport = FixedResolutionViewport(
-      resolution: targetResolution,
+      resolution: Vector2(gameWidth, gameHeight),
     );
     camera.viewfinder.anchor = Anchor.topLeft;
     camera.viewfinder.zoom = 1.0;
 
-    // Calculate scale factor to maintain consistent size across devices
-    final scaleFactor = targetResolution.x / worldWidth;
-
-    // Add timer to HUD with scaled position
+    // Add timer to HUD
     add(timer);
 
-    // Background image - scale to cover the entire world
+    // Background image
     final background = SpriteComponent(
       sprite: await Sprite.load('Background/background.png'),
       position: Vector2.zero(),
-      size: Vector2(worldWidth, worldWidth / targetAspectRatio),
+      size: Vector2(worldWidth, gameHeight),
     );
     gameLayer.add(background);
 
@@ -223,7 +207,7 @@ class ApeEscapeGame extends FlameGame
     );
     gameLayer.add(widePlatform);
 
-    // Add a row of clouds after the wide platform
+       // Add a row of clouds after the wide platform
     final cloudStartX = Platform.platformSize * (22 + 8 + 15);
     final cloudY = gameHeight - Platform.platformSize * 3;
     final cloudSpacing = Platform.platformSize * 3.5;
@@ -460,17 +444,17 @@ class ApeEscapeGame extends FlameGame
     );
     gameLayer.add(button);
 
-    // Initialize joystick with scaled size
+    // Initialize joystick
     joystick = JoystickComponent(
       knob: CircleComponent(
-        radius: targetResolution.y * 0.06,
+        radius: gameHeight * 0.06,
         paint: Paint()..color = const Color(0xFFAAAAAA).withOpacity(0.8),
       ),
       background: CircleComponent(
-        radius: targetResolution.y * 0.12,
+        radius: gameHeight * 0.12,
         paint: Paint()..color = const Color(0xFF444444).withOpacity(0.5),
       ),
-      position: Vector2(targetResolution.x * 0.1, targetResolution.y * 0.7),
+      position: Vector2(gameWidth * 0.1, gameHeight * 0.7),
       priority: 2,
     );
     add(joystick);
@@ -560,13 +544,13 @@ class ApeEscapeGame extends FlameGame
       timer.reset();
     });
 
-    // Jump button with scaled size
+    // Jump button
     final jumpButton = HudButtonComponent(
       button: CircleComponent(
-        radius: targetResolution.y * 0.12,
+        radius: gameHeight * 0.12,
         paint: Paint()..color = const Color(0xFF00FF00).withOpacity(0.5),
       ),
-      position: Vector2(targetResolution.x * 0.85, targetResolution.y * 0.59),
+      position: Vector2(gameWidth * 0.85, gameHeight * 0.59),
       priority: 2,
       onPressed: player.jump,
     );
