@@ -231,6 +231,14 @@ class Monkey extends SpriteAnimationComponent
       animation =
           (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
     } else if (other is Cloud && !_isDead) {
+      _isGrounded = true;
+      velocity.y = 0;
+      position.y = other.position.y - size.y / 2;
+      _currentPlatform = other;
+      animation =
+          (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
+      
+      /*
       // More generous vertical and horizontal collision check for clouds
       final verticalOverlap = (position.y + size.y / 2) - other.position.y;
       
@@ -251,6 +259,7 @@ class Monkey extends SpriteAnimationComponent
         animation =
             (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
       }
+      */
     } else if (other is Vine) {
       _currentVine = other;
     } else if (other is Heart) {

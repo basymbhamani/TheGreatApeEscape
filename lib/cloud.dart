@@ -44,9 +44,9 @@ class Cloud extends Platform {
 
     // Add collision hitbox that matches the cloud's total height
     add(RectangleHitbox(
-      size: Vector2(Platform.platformSize * numBlocks - 30, Platform.platformSize * 0.6), // Increased height further
-      position: Vector2(0, 56), // Moved up more to better match visual cloud
-      collisionType: CollisionType.passive, // Changed back to passive
+      size: Vector2(Platform.platformSize * numBlocks - 60, Platform.platformSize), // Increased horizontal padding from 20 to 40
+      position: Vector2(0, 60), // Adjusted position to better match visual cloud
+      collisionType: CollisionType.passive,
     )..debugMode = ApeEscapeGame.showHitboxes);
   }
 
@@ -60,15 +60,34 @@ class Cloud extends Platform {
   @override
   void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
     if (other is Monkey) {
-      // Check if monkey is above the cloud and falling
+      print("\n=== Cloud Collision Debug ===");
+      print("Monkey position: ${other.position}");
+      print("Monkey velocity: ${other.velocity}");
+      print("Cloud position: $position");
+      print("Cloud hitbox size: ${children.whereType<RectangleHitbox>().first.size}");
+      print("Cloud hitbox position: ${children.whereType<RectangleHitbox>().first.position}");
+      
+      // Handle platform behavior
+      final verticalOverlap = other.position.y + other.size.y / 2 - position.y;
+      print("Vertical overlap: $verticalOverlap");
+      
+      // Simplified collision check - just check if monkey is above cloud and within range
       if (other.position.y + other.size.y / 2 > position.y && 
-          other.position.y + other.size.y / 2 < position.y + 60 && // Increased buffer zone further
-          other.velocity.y > 0) {
+          other.position.y + other.size.y / 2 < position.y + 100) { // Increased range to 100
+        print("Platform conditions met - grounding monkey");
         other.isGrounded = true;
         other.velocity.y = 0;
-        //other.position.y = position.y - other.size.y / 2;
+         // Snap to cloud surface
+        other.animation = (other.joystick?.delta.x.abs() ?? 0) > 0 ? other.runAnimation : other.idleAnimation;
         _monkeyOnCloud = other;
+      } else {
+        print("Platform conditions NOT met:");
+        print("Above cloud: ${other.position.y + other.size.y / 2 > position.y}");
+        print("Within range: ${other.position.y + other.size.y / 2 < position.y + 100}");
       }
+      
+      // Start breaking animation
+      print("Starting cloud breaking animation");
       startBreaking();
     }
     super.onCollisionStart(intersectionPoints, other);
@@ -77,6 +96,10 @@ class Cloud extends Platform {
   @override
   void onCollisionEnd(PositionComponent other) {
     if (other is Monkey && other == _monkeyOnCloud) {
+      print("\n=== Cloud Collision End Debug ===");
+      print("Monkey leaving cloud");
+      print("Monkey position: ${other.position}");
+      print("Monkey velocity: ${other.velocity}");
       other.isGrounded = false;
       _monkeyOnCloud = null;
     }
