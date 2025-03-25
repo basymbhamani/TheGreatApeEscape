@@ -41,11 +41,18 @@ class ApeEscapeGame extends FlameGame
   double _timeSinceLastUpdate = 0.0;
   
   // Platform height offset for different screen sizes
-  double platformYOffset = 0.0;
+  // Calculate dynamically based on device screen height rather than hardcoded values
+  double platformYOffset = 0.0; // Will be calculated during initialization
+  bool _offsetCalibrated = false; // Track if offset has been calibrated
+  double _lastLocalPlatformY = 0.0; // Track last known local platform Y
+  double _lastRemotePlatformY = 0.0; // Track last known remote platform Y
+  int _calibrationAttempts = 0; // Track calibration attempts
+  static const int maxCalibrationAttempts = 5;
   
-  // Map to store other players' screen heights
-  final Map<String, double> remoteScreenHeights = {};
-  
+  // Height ratio calibration
+  double _screenHeightRatio = 1.0; // Ratio between local and remote screen heights
+  bool _ratioCalibrated = false; // Whether the ratio has been calibrated
+
   // Debug mode
   static bool showHitboxes = true;
 
@@ -54,6 +61,9 @@ class ApeEscapeGame extends FlameGame
 
   // Camera window settings
   static const double cameraWindowMarginRatio = 0.4;
+
+  // Fixed platform height offset
+  final double platformYOffset = 0.0;
 
   ApeEscapeGame({this.socket, this.matchId, this.session}) {
     gameLayer = PositionComponent();
@@ -65,6 +75,11 @@ class ApeEscapeGame extends FlameGame
     // Get actual screen dimensions
     gameWidth = size.x;
     gameHeight = size.y;
+    
+    // Initialize platform offset based on the current device's ground platform Y position
+    // Dynamic calculation instead of using hardcoded reference value
+    platformYOffset = 0; // Start with no offset until we calibrate
+    print('Initial platform Y offset zeroed; will be dynamically calibrated');
     
     // Print device screen dimensions for debugging
     print('Device screen dimensions: $gameWidth x $gameHeight');
@@ -474,7 +489,7 @@ class ApeEscapeGame extends FlameGame
       ..priority = 2;
     gameLayer.add(player);
 
-    // Process update from remote player
+    // Set up multiplayer listeners if socket is provided
     if (socket != null && matchId != null && session != null) {
       socket!.onMatchData.listen((event) {
         if (event.matchId == matchId) {
@@ -511,24 +526,41 @@ class ApeEscapeGame extends FlameGame
               return;
             }
 
-            // Get remote screen height information
-            final remoteScreenHeight = (data['screenHeight'] as num?)?.toDouble();
-            if (remoteScreenHeight != null) {
-              // Store the remote player's screen height
-              remoteScreenHeights[playerId] = remoteScreenHeight;
-              
-              // Calculate the offset based on screen height difference
-              platformYOffset = (gameHeight - remoteScreenHeight) / 2;
-              print('Updated platformYOffset to $platformYOffset based on screen height difference');
-            }
-
             final isMoving = data['isMoving'] as bool? ?? false;
             final isJumping = data['isJumping'] as bool? ?? false;
             final scaleX = (data['scaleX'] as num?)?.toDouble() ?? 1.0;
             
-            // Apply the offset to the remote player's Y position
-            final adjustedY = y + platformYOffset;
+            // Get remote platform Y if player is on a platform
+            final remotePlatformY = (data['platformY'] as num?)?.toDouble() ?? 0.0;
+            
+            // Get remote screen height if available
+            final remoteScreenHeight = (data['screenHeight'] as num?)?.toDouble();
+            
+            // Calculate screen height ratio if we have the remote height
+            if (remoteScreenHeight != null && !_ratioCalibrated && remoteScreenHeight > 0) {
+              _screenHeightRatio = gameHeight / remoteScreenHeight;
+              _ratioCalibrated = true;
+              print('Screen height ratio calculated from remote data: $_screenHeightRatio');
+              print('Local height: $gameHeight, Remote height: $remoteScreenHeight');
+            }
+            
+            // Check if remote player is on a platform to calibrate offset
+            if (!isJumping) {
+              // The remote player is grounded - use for calibration
+              if (remotePlatformY > 0) {
+                // Use the actual platform Y value if provided
+                calibratePlatformOffset(remotePlatformY, true);
+              } else {
+                // Fall back to position Y if platformY not available
+                calibratePlatformOffset(y, true);
+              }
+            }
 
+            // Apply offset to received Y position to match this device's coordinate system
+            final adjustedY = _ratioCalibrated ? 
+                applyScreenHeightRatio(y) : 
+                y + platformYOffset;
+            
             if (!remotePlayers.containsKey(playerId)) {
               print('Creating new remote player: $playerId');
               final remotePlayer =
@@ -584,6 +616,16 @@ class ApeEscapeGame extends FlameGame
   void update(double dt) {
     super.update(dt);
 
+    // Track platform positions for local player
+    if (player.isGrounded) {
+      _lastLocalPlatformY = player.position.y;
+      
+      // If we also have remote platform data, try to calibrate
+      if (_lastRemotePlatformY > 0 && !_offsetCalibrated) {
+        calibratePlatformOffset(_lastRemotePlatformY, true);
+      }
+    }
+
     // Calculate the camera window boundaries
     final windowLeft =
         -gameLayer.position.x + gameWidth * cameraWindowMarginRatio;
@@ -614,11 +656,10 @@ class ApeEscapeGame extends FlameGame
         final data = {
           'playerId': session!.userId,
           'x': player.position.x,
-          'y': player.position.y - platformYOffset, // Apply inverse offset when sending
+          'y': player.position.y - platformYOffset, // Apply fixed transformation when sending
           'isMoving': (joystick?.delta.x.abs() ?? 0) > 0,
           'isJumping': !player.isGrounded,
           'scaleX': player.scale.x,
-          'screenHeight': gameHeight, // Send our screen height
         };
 
         socket!.sendMatchData(
@@ -659,22 +700,105 @@ class ApeEscapeGame extends FlameGame
     return KeyEventResult.ignored;
   }
 
-  // Update remote players when offset changes
-  void updateRemotePlayersWithOffset() {
-    for (final remotePlayer in remotePlayers.values) {
-      final originalY = remotePlayer.position.y - platformYOffset; // Remove old offset
-      remotePlayer.position.y = originalY + platformYOffset; // Apply new offset
+  // Method to calibrate platform offset when a remote monkey is on a platform
+  void calibratePlatformOffset(double remoteY, bool isOnPlatform) {
+    if (_offsetCalibrated && _calibrationAttempts >= maxCalibrationAttempts) return;
+    
+    if (isOnPlatform) {
+      _lastRemotePlatformY = remoteY;
+      
+      // If ratio is already calibrated, use that for positioning instead of offset
+      if (_ratioCalibrated) {
+        // We can skip most offset calibration steps if we're using ratio-based positioning
+        if (!_offsetCalibrated) {
+          _offsetCalibrated = true;
+          print('Using screen ratio-based positioning instead of offset');
+        }
+        return;
+      }
+      
+      // If both players are on platforms, we can calibrate more accurately
+      if (player.isGrounded) {
+        _lastLocalPlatformY = player.position.y;
+        
+        // Calculate offset between the two platform positions
+        final newOffset = _lastLocalPlatformY - _lastRemotePlatformY;
+        
+        // If the difference is significant, update the offset
+        if ((newOffset - platformYOffset).abs() > 5.0) {
+          platformYOffset = newOffset;
+          _calibrationAttempts++;
+          
+          // Try to calculate the screen height ratio
+          if (!_ratioCalibrated) {
+            // Calculate ratio based on known platform positions
+            // Ground platform positions on each screen
+            final localGroundY = gameHeight - Platform.platformSize;
+            final estimatedRemoteGroundY = remoteY + (Monkey.monkeyHeight/2);
+            
+            if (estimatedRemoteGroundY > 0) {
+              _screenHeightRatio = localGroundY / estimatedRemoteGroundY;
+              _ratioCalibrated = true;
+              print('Screen height ratio calculated: $_screenHeightRatio (local: $localGroundY, remote est: $estimatedRemoteGroundY)');
+            }
+          }
+          
+          print('Platform offset recalibrated to: $platformYOffset (attempt $_calibrationAttempts)');
+          
+          // Update all existing remote players with new offset
+          _updateRemotePlayersWithOffset();
+        } else if (!_offsetCalibrated) {
+          _offsetCalibrated = true;
+          print('Platform offset confirmed at: $platformYOffset');
+        }
+      } else {
+        // If only remote player is on platform, calculate based on expected ground position
+        final expectedLocalY = gameHeight - Platform.platformSize - Monkey.monkeyHeight/2;
+        final adjustedOffset = expectedLocalY - remoteY;
+        
+        // Only update if the offset seems reasonable
+        if ((adjustedOffset - platformYOffset).abs() < 100.0) {
+          platformYOffset = adjustedOffset;
+          _calibrationAttempts++;
+          print('Platform offset estimated to: $platformYOffset (attempt $_calibrationAttempts)');
+          
+          // Update all existing remote players with new offset
+          _updateRemotePlayersWithOffset();
+        }
+      }
     }
   }
   
-  // Override the setter to update all remote players when offset changes
-  void setPlatformYOffset(double offset) {
-    double oldOffset = platformYOffset;
-    platformYOffset = offset;
-    print('Platform Y offset set to: $offset (changed from $oldOffset)');
-    
-    if (oldOffset != offset) {
-      updateRemotePlayersWithOffset();
+  // Apply screen height ratio to convert a Y position from remote to local coordinates
+  double applyScreenHeightRatio(double remoteY) {
+    if (_ratioCalibrated) {
+      // Apply ratio-based transformation
+      final remoteScreenEstimatedHeight = gameHeight / _screenHeightRatio;
+      final relativePosition = remoteY / remoteScreenEstimatedHeight;
+      return relativePosition * gameHeight;
+    } else {
+      // Fall back to offset-based transformation
+      return remoteY + platformYOffset;
     }
   }
+  
+  // Update all remote players with the new offset
+  void _updateRemotePlayersWithOffset() {
+    for (final remotePlayer in remotePlayers.values) {
+      if (_ratioCalibrated) {
+        // Use ratio-based positioning
+        final adjustedY = applyScreenHeightRatio(remotePlayer.position.y - platformYOffset);
+        remotePlayer.position.y = adjustedY;
+      } else {
+        // Use simple offset-based positioning
+        remotePlayer.position.y = remotePlayer.position.y + 
+            (platformYOffset - _lastAdjustedOffset);
+      }
+    }
+    // Remember the last offset we applied
+    _lastAdjustedOffset = platformYOffset;
+  }
+  
+  // Track the last applied offset
+  double _lastAdjustedOffset = 0.0;
 }
