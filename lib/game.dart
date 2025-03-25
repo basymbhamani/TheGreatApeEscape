@@ -41,7 +41,7 @@ class ApeEscapeGame extends FlameGame
   double _timeSinceLastUpdate = 0.0;
 
   // Debug mode
-  static bool showHitboxes = false;
+  static bool showHitboxes = true;
 
   // World boundaries
   static const worldWidth = 8500.0;
@@ -460,10 +460,9 @@ class ApeEscapeGame extends FlameGame
     add(joystick);
 
     // Create player
-    player =
-        Monkey(joystick, worldWidth, gameHeight)
-          ..position = Vector2(200, gameHeight - Platform.platformSize * 2 + 5)
-          ..priority = 2;
+    player = Monkey(joystick, worldWidth, gameHeight)
+      ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
+      ..priority = 2;
     gameLayer.add(player);
 
     // Set up multiplayer listeners if socket is provided
