@@ -29,8 +29,8 @@ class ApeEscapeGame extends FlameGame
     with HasCollisionDetection, KeyboardEvents {
   late final JoystickComponent joystick;
   late final Monkey player;
-  late final double gameWidth;
-  late final double gameHeight;
+  double gameWidth = 720.0;
+  double gameHeight = 720.0; // Default height
   late final PositionComponent gameLayer;
   GameTimer timer = GameTimer();
   final NakamaWebsocketClient? socket;
@@ -460,9 +460,10 @@ class ApeEscapeGame extends FlameGame
     add(joystick);
 
     // Create player
-    player = Monkey(joystick, worldWidth, gameHeight)
-      ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
-      ..priority = 2;
+    player =
+        Monkey(joystick, worldWidth, gameHeight)
+          ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
+          ..priority = 2;
     gameLayer.add(player);
 
     // Set up multiplayer listeners if socket is provided

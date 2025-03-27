@@ -170,16 +170,12 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
                         context,
                         MaterialPageRoute(
                           builder:
-                              (context) => GameWidget(
-                                game: ApeEscapeGame(
-                                  socket: socket,
-                                  matchId: match.matchId,
-                                  session: widget.session,
-                                ),
-                                backgroundBuilder:
-                                    (context) => Container(
-                                      color: const Color(0xFF87CEEB),
-                                    ),
+                              (context) => PreGameLobby(
+                                code: match.matchId,
+                                socket: socket,
+                                isHost: true,
+                                groupName: _groupNameController.text,
+                                session: widget.session,
                               ),
                         ),
                       );
@@ -274,16 +270,11 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
                           context,
                           MaterialPageRoute(
                             builder:
-                                (context) => GameWidget(
-                                  game: ApeEscapeGame(
-                                    socket: socket,
-                                    matchId: match.matchId,
-                                    session: widget.session,
-                                  ),
-                                  backgroundBuilder:
-                                      (context) => Container(
-                                        color: const Color(0xFF87CEEB),
-                                      ),
+                                (context) => PreGameLobby(
+                                  code: match.matchId,
+                                  socket: socket,
+                                  isHost: false,
+                                  session: widget.session,
                                 ),
                           ),
                         );

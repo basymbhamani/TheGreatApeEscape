@@ -3,8 +3,9 @@ import 'package:nakama/nakama.dart'; // Add this for NakamaWebsocketClient
 import 'package:flame/game.dart';
 import 'game.dart';
 import 'pre_game_lobby.dart';
+import 'dart:convert';
 
-class GameMainMenu extends StatelessWidget {
+class GameMainMenu extends StatefulWidget {
   final String matchId; // Match ID from Nakama or elsewhere
   final NakamaWebsocketClient socket; // WebSocket client for Nakama
   final Session session; // Add session parameter
@@ -16,6 +17,11 @@ class GameMainMenu extends StatelessWidget {
     required this.session, // Add session to constructor
   });
 
+  @override
+  State<GameMainMenu> createState() => _GameMainMenuState();
+}
+
+class _GameMainMenuState extends State<GameMainMenu> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,20 +59,40 @@ class GameMainMenu extends StatelessWidget {
                           _buildMenuOption(
                             icon: Icons.book,
                             label: 'Story Mode',
-                            onTap: () {
+                            onTap: () async {
+                              // Create a new match for the game level
+                              final newMatch =
+                                  await widget.socket.createMatch();
+
+                              // Send the new match ID to all players
+                              widget.socket.sendMatchData(
+                                matchId: widget.matchId,
+                                opCode: 2,
+                                data: utf8.encode(
+                                  jsonEncode({
+                                    'newMatchId': newMatch.matchId,
+                                    'initiator': widget.session.userId,
+                                  }),
+                                ),
+                              );
+
+                              // Join the new match and start the game
+                              await widget.socket.joinMatch(newMatch.matchId);
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => GameWidget(
-                                    game: ApeEscapeGame(
-                                      socket: socket,
-                                      matchId: matchId,
-                                      session: session,
-                                    ),
-                                    backgroundBuilder: (context) => Container(
-                                      color: const Color(0xFF87CEEB),
-                                    ),
-                                  ),
+                                  builder:
+                                      (context) => GameWidget(
+                                        game: ApeEscapeGame(
+                                          socket: widget.socket,
+                                          matchId: newMatch.matchId,
+                                          session: widget.session,
+                                        ),
+                                        backgroundBuilder:
+                                            (context) => Container(
+                                              color: const Color(0xFF87CEEB),
+                                            ),
+                                      ),
                                 ),
                               );
                             },
@@ -80,10 +106,10 @@ class GameMainMenu extends StatelessWidget {
                                 MaterialPageRoute(
                                   builder:
                                       (context) => PreGameLobby(
-                                        code: matchId,
-                                        socket: socket,
+                                        code: widget.matchId,
+                                        socket: widget.socket,
                                         isHost: true,
-                                        session: session,
+                                        session: widget.session,
                                       ),
                                 ),
                               );
@@ -131,6 +157,49 @@ class GameMainMenu extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    widget.socket.onMatchData.listen((state) {
+      if (state.matchId == widget.matchId && state.opCode == 2) {
+        try {
+          final data =
+              jsonDecode(String.fromCharCodes(state.data ?? []))
+                  as Map<String, dynamic>;
+          final newMatchId = data['newMatchId'] as String?;
+          final initiatorId = data['initiator'] as String?;
+
+          if (newMatchId != null &&
+              initiatorId != null &&
+              initiatorId != widget.session.userId) {
+            // Join the new match and start the game
+            widget.socket.joinMatch(newMatchId).then((_) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => GameWidget(
+                        game: ApeEscapeGame(
+                          socket: widget.socket,
+                          matchId: newMatchId,
+                          session: widget.session,
+                        ),
+                        backgroundBuilder:
+                            (context) =>
+                                Container(color: const Color(0xFF87CEEB)),
+                      ),
+                ),
+              );
+            });
+          }
+        } catch (e) {
+          print('Error processing match data: $e');
+        }
+      }
+    });
   }
 
   Widget _buildMenuOption({

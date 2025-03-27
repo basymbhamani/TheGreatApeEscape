@@ -147,19 +147,26 @@ class LobbyGame extends ApeEscapeGame {
       worldWidth: 2856.0,
       height: 720.0,
       numBlocks: 28,
-      startPosition: Vector2(0, gameHeight - Platform.platformSize),  // Position at bottom of screen
-      heightInBlocks: 2,  // Make it taller to ensure good collision
+      startPosition: Vector2(
+        0,
+        gameHeight - Platform.platformSize,
+      ), // Position at bottom of screen
+      heightInBlocks: 2, // Make it taller to ensure good collision
     );
     add(ground);
 
     // Create player with adjusted starting position
     player = Monkey(
-      joystick,
-      2856.0,  // worldWidth (same as ground width)
-      720.0,   // gameHeight (from viewport)
-      playerId: session.userId,
-      isRemotePlayer: false,
-    )..position = Vector2(400, gameHeight - Platform.platformSize - 100);  // Position above ground
+        joystick,
+        2856.0, // worldWidth (same as ground width)
+        720.0, // gameHeight (from viewport)
+        playerId: session.userId,
+        isRemotePlayer: false,
+      )
+      ..position = Vector2(
+        400,
+        gameHeight - Platform.platformSize - 100,
+      ); // Position above ground
     add(player);
 
     // Create door
@@ -169,11 +176,12 @@ class LobbyGame extends ApeEscapeGame {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => GameMainMenu(
-              matchId: code,
-              socket: socket,
-              session: session,
-            ),
+            builder:
+                (context) => GameMainMenu(
+                  matchId: code,
+                  socket: socket,
+                  session: session,
+                ),
           ),
         );
       },
@@ -260,8 +268,8 @@ class LobbyGame extends ApeEscapeGame {
       print("Adding remote player: $playerId");
       final remotePlayer = Monkey(
         null,
-        2856.0,  // worldWidth (same as ground width)
-        720.0,   // gameHeight (from viewport)
+        2856.0, // worldWidth (same as ground width)
+        720.0, // gameHeight (from viewport)
         playerId: playerId,
         isRemotePlayer: true,
       )..position = Vector2(400, 200);
