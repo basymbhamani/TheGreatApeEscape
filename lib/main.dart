@@ -8,7 +8,17 @@ import 'host_join_screen.dart';
 import 'game.dart';
 
 void main() async {
+  // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Set preferred orientations first (await ensures it completes)
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+
+  // Hide Status Bar and Navigation Bar for immersive game experience
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   // Initialize Nakama client
   await dotenv.load(fileName: "assets/.env");
@@ -25,15 +35,11 @@ void main() async {
     deviceId: 'unique-device-id${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(1000)}',
   );
 
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]).then((_) {
-    runApp(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: HostJoinScreen(nakamaClient: nakamaClient, session: session), // Start with the HostJoinScreen
-      ),
-    );
-  });
+  // Run the app
+  runApp(
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: HostJoinScreen(nakamaClient: nakamaClient, session: session), // Start with the HostJoinScreen
+    ),
+  );
 }

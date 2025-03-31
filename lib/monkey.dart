@@ -58,11 +58,14 @@ class Monkey extends SpriteAnimationComponent
   final String? playerId;
   final bool isRemotePlayer;
   bool _isVisible = true;
+  bool _controlsEnabled = true;
 
   bool get isDead => _isDead;
   bool get isGrounded => _isGrounded;
   set isGrounded(bool value) => _isGrounded = value;
   bool get isVisible => _isVisible;
+  set isVisible(bool value) => _isVisible = value;
+  
 
   late final SpriteAnimation idleAnimation;
   late final SpriteAnimation runAnimation;
@@ -75,6 +78,16 @@ class Monkey extends SpriteAnimationComponent
     this.playerId,
     this.isRemotePlayer = false,
   }) : worldHeight = gameHeight;
+
+  void enableControls() {
+     _controlsEnabled = true;
+   }
+ 
+   void disableControls() {
+     _controlsEnabled = false;
+     velocity = Vector2.zero();
+     animation = idleAnimation;
+   }
 
   void setOnReset(VoidCallback callback) {
     _onReset = callback;
@@ -376,6 +389,13 @@ class Monkey extends SpriteAnimationComponent
 
   @override
   void update(double dt) {
+    if (!_controlsEnabled) {
+      // When controls are disabled, ignore joystick input
+      if (joystick != null) {
+        velocity.x = 0;
+      }
+      return;
+    }
     super.update(dt);
 
     if (isRemotePlayer) return;

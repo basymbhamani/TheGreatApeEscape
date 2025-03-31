@@ -24,6 +24,9 @@ import 'rectangular_moving_platform.dart';
 import 'timer_component.dart';
 import 'door.dart';
 import 'dart:convert';
+import 'pause_menu.dart';
+import 'pause_button.dart';
+
 
 class ApeEscapeGame extends FlameGame
     with HasCollisionDetection, KeyboardEvents {
@@ -39,6 +42,7 @@ class ApeEscapeGame extends FlameGame
   final Map<String, Monkey> remotePlayers = {};
   static const updateRate = 1.0 / 60.0; // 30 updates per second
   double _timeSinceLastUpdate = 0.0;
+  bool _isPaused = false;
   
   // Platform height offset for different screen sizes
   double platformYOffset = 0.0;
@@ -75,6 +79,8 @@ class ApeEscapeGame extends FlameGame
     );
     camera.viewfinder.anchor = Anchor.topLeft;
     camera.viewfinder.zoom = 1.0;
+
+    add(PauseButton());
 
     // Add timer to HUD
     add(timer);
@@ -503,6 +509,34 @@ class ApeEscapeGame extends FlameGame
 
             print('Processing update from player: $playerId');
 
+            // Handle pause events
+             if (event.opCode == 2) {
+               final type = data['type'] as String?;
+               if (type == 'pause') {
+                 final isPaused = data['isPaused'] as bool? ?? false;
+                 if (isPaused) {
+                   _isPaused = true;
+                   timer.pause();
+                   player.disableControls();
+                   overlays.add('pause');
+                   pauseEngine();
+                 } else {
+                   _isPaused = false;
+                   timer.start();
+                   player.enableControls();
+                   overlays.remove('pause');
+                   resumeEngine();
+                 }
+                 return;
+               } else if (type == 'restart') {
+                 // Handle restart signal from other players
+                 resetLevel();
+                 return;
+               }
+             }
+
+            
+
             final x = (data['x'] as num?)?.toDouble();
             final y = (data['y'] as num?)?.toDouble();
 
@@ -580,9 +614,16 @@ class ApeEscapeGame extends FlameGame
     add(jumpButton);
   }
 
+   @override
+   void onMount() {
+     super.onMount();
+     // Register the pause menu overlay
+     overlays.addEntry('pause', (context, game) => PauseMenu(game: this));
+   }
+
   @override
   void update(double dt) {
-    super.update(dt);
+    
 
     // Calculate the camera window boundaries
     final windowLeft =
@@ -619,6 +660,7 @@ class ApeEscapeGame extends FlameGame
           'isJumping': !player.isGrounded,
           'scaleX': player.scale.x,
           'screenHeight': gameHeight, // Send our screen height
+          'isPaused': _isPaused,
         };
 
         socket!.sendMatchData(
@@ -628,6 +670,9 @@ class ApeEscapeGame extends FlameGame
         );
       }
     }
+
+    if (_isPaused) return;
+    super.update(dt);
   }
 
   @override
@@ -652,9 +697,19 @@ class ApeEscapeGame extends FlameGame
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
-      player.jump();
-      return KeyEventResult.handled;
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        if (_isPaused) {
+          resumeGame();
+        } else {
+          pauseGame();
+        }
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.space && !_isPaused) {
+        player.jump();
+        return KeyEventResult.handled;
+      }
     }
     return KeyEventResult.ignored;
   }
@@ -677,4 +732,99 @@ class ApeEscapeGame extends FlameGame
       updateRemotePlayersWithOffset();
     }
   }
+
+
+  void pauseGame() {
+     if (!_isPaused) {
+       _isPaused = true;
+       timer.pause();
+       player.disableControls();
+       overlays.add('pause');
+       pauseEngine();
+ 
+       // Send pause signal to other players
+       if (socket != null && matchId != null && session != null) {
+         final data = {
+           'playerId': session!.userId,
+           'type': 'pause',
+           'isPaused': true,
+         };
+ 
+         socket!.sendMatchData(
+           matchId: matchId!,
+           opCode: 2,
+           data: List<int>.from(utf8.encode(jsonEncode(data))),
+         );
+       }
+     }
+   }
+ 
+   void resumeGame() {
+     if (_isPaused) {
+       _isPaused = false;
+       timer.start();
+       player.enableControls();
+       overlays.remove('pause');
+       resumeEngine();
+ 
+       // Ensure player is visible and in correct state
+       player.isVisible = true;
+       player.opacity = 1.0;
+       if ((player.joystick?.delta.x.abs() ?? 0) > 0) {
+         player.animation = player.runAnimation;
+       } else {
+         player.animation = player.idleAnimation;
+       }
+ 
+       // Send resume signal to other players
+       if (socket != null && matchId != null && session != null) {
+         final data = {
+           'playerId': session!.userId,
+           'type': 'pause',
+           'isPaused': false,
+         };
+ 
+         socket!.sendMatchData(
+           matchId: matchId!,
+           opCode: 2,
+           data: List<int>.from(utf8.encode(jsonEncode(data))),
+         );
+       }
+     }
+   }
+ 
+   void resetLevel() {
+     // Reset the player
+     player.reset();
+ 
+     // Reset the timer
+     timer.reset();
+ 
+     // Reset the button if it exists
+     final button = gameLayer.children.whereType<Button>().firstOrNull;
+     if (button != null) {
+       button.reset();
+     }
+ 
+     // Reset any other game state that needs to be reset
+     _isPaused = false;
+     timer.start();
+     player.enableControls();
+     overlays.remove('pause');
+     resumeEngine();
+   }
+ 
+   void sendRestartSignal() {
+     if (socket != null && matchId != null && session != null) {
+       final data = {'playerId': session!.userId, 'type': 'restart'};
+ 
+       socket!.sendMatchData(
+         matchId: matchId!,
+         opCode: 2,
+         data: List<int>.from(utf8.encode(jsonEncode(data))),
+       );
+     }
+   }
 }
+
+
