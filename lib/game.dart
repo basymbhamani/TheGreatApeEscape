@@ -39,7 +39,13 @@ class ApeEscapeGame extends FlameGame
   final Map<String, Monkey> remotePlayers = {};
   static const updateRate = 1.0 / 60.0; // 30 updates per second
   double _timeSinceLastUpdate = 0.0;
-
+  
+  // Platform height offset for different screen sizes
+  double platformYOffset = 0.0;
+  
+  // Map to store other players' screen heights
+  final Map<String, double> remoteScreenHeights = {};
+  
   // Debug mode
   static bool showHitboxes = true;
 
@@ -59,6 +65,9 @@ class ApeEscapeGame extends FlameGame
     // Get actual screen dimensions
     gameWidth = size.x;
     gameHeight = size.y;
+    
+    // Print device screen dimensions for debugging
+    print('Device screen dimensions: $gameWidth x $gameHeight');
 
     // Set up camera and viewport
     camera.viewport = FixedResolutionViewport(
@@ -465,7 +474,7 @@ class ApeEscapeGame extends FlameGame
       ..priority = 2;
     gameLayer.add(player);
 
-    // Set up multiplayer listeners if socket is provided
+    // Process update from remote player
     if (socket != null && matchId != null && session != null) {
       socket!.onMatchData.listen((event) {
         if (event.matchId == matchId) {
@@ -502,9 +511,23 @@ class ApeEscapeGame extends FlameGame
               return;
             }
 
+            // Get remote screen height information
+            final remoteScreenHeight = (data['screenHeight'] as num?)?.toDouble();
+            if (remoteScreenHeight != null) {
+              // Store the remote player's screen height
+              remoteScreenHeights[playerId] = remoteScreenHeight;
+              
+              // Calculate the offset based on screen height difference
+              platformYOffset = (gameHeight - remoteScreenHeight) / 2;
+              print('Updated platformYOffset to $platformYOffset based on screen height difference');
+            }
+
             final isMoving = data['isMoving'] as bool? ?? false;
             final isJumping = data['isJumping'] as bool? ?? false;
             final scaleX = (data['scaleX'] as num?)?.toDouble() ?? 1.0;
+            
+            // Apply the offset to the remote player's Y position
+            final adjustedY = y + platformYOffset;
 
             if (!remotePlayers.containsKey(playerId)) {
               print('Creating new remote player: $playerId');
@@ -516,7 +539,7 @@ class ApeEscapeGame extends FlameGame
                       playerId: playerId,
                       isRemotePlayer: true,
                     )
-                    ..position = Vector2(x, y)
+                    ..position = Vector2(x, adjustedY)
                     ..priority = 2;
               remotePlayers[playerId] = remotePlayer;
               gameLayer.add(remotePlayer);
@@ -524,7 +547,7 @@ class ApeEscapeGame extends FlameGame
               print('Updating existing player: $playerId');
               final remotePlayer = remotePlayers[playerId]!;
               remotePlayer.updateRemoteState(
-                Vector2(x, y),
+                Vector2(x, adjustedY),
                 isMoving,
                 isJumping,
                 scaleX,
@@ -591,10 +614,11 @@ class ApeEscapeGame extends FlameGame
         final data = {
           'playerId': session!.userId,
           'x': player.position.x,
-          'y': player.position.y,
+          'y': player.position.y - platformYOffset, // Apply inverse offset when sending
           'isMoving': (joystick?.delta.x.abs() ?? 0) > 0,
           'isJumping': !player.isGrounded,
           'scaleX': player.scale.x,
+          'screenHeight': gameHeight, // Send our screen height
         };
 
         socket!.sendMatchData(
@@ -633,5 +657,24 @@ class ApeEscapeGame extends FlameGame
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  // Update remote players when offset changes
+  void updateRemotePlayersWithOffset() {
+    for (final remotePlayer in remotePlayers.values) {
+      final originalY = remotePlayer.position.y - platformYOffset; // Remove old offset
+      remotePlayer.position.y = originalY + platformYOffset; // Apply new offset
+    }
+  }
+  
+  // Override the setter to update all remote players when offset changes
+  void setPlatformYOffset(double offset) {
+    double oldOffset = platformYOffset;
+    platformYOffset = offset;
+    print('Platform Y offset set to: $offset (changed from $oldOffset)');
+    
+    if (oldOffset != offset) {
+      updateRemotePlayersWithOffset();
+    }
   }
 }

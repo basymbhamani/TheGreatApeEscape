@@ -144,6 +144,36 @@ class Monkey extends SpriteAnimationComponent
     } else {
       animation = idleAnimation;
     }
+    
+    // For remote players, make sure they look correct when on platforms
+    if (_isGrounded) {
+      // Check if we're overlapping with a platform
+      PositionComponent? closestPlatform;
+      double closestDistance = double.infinity;
+      
+      for (final component in parent!.children) {
+        if (component is Platform && 
+            position.x + size.x/2 >= component.position.x && 
+            position.x - size.x/2 <= component.position.x + component.size.x) {
+          
+          // Calculate vertical distance to this platform
+          final distance = (position.y + size.y / 2 - component.position.y).abs();
+          
+          // If this is the closest platform so far, remember it
+          if (distance < closestDistance) {
+            closestPlatform = component;
+            closestDistance = distance;
+          }
+        }
+      }
+      
+      // If we found a platform and we're close enough, snap to it
+      if (closestPlatform != null && closestDistance < 50) {
+        // We're over a platform, adjust height to match it properly
+        position.y = closestPlatform.position.y - size.y/2;
+        print('Remote player aligned to platform at y=${position.y}, platform y=${closestPlatform.position.y}');
+      }
+    }
   }
 
   void jump() {
@@ -214,12 +244,22 @@ class Monkey extends SpriteAnimationComponent
       _isGrounded = false;
       animation = jumpAnimation;
     } else if (other is Platform && !_isDead) {
-      if (position.y + size.y / 2 > other.position.y &&
-          position.y + size.y / 2 < other.position.y + 20 &&
-          velocity.y > 0) {
+      // Calculate vertical distance from platform top
+      final distanceFromTop = position.y + size.y / 2 - other.position.y;
+      
+      // Check if we're landing on top of the platform (with a reasonable margin)
+      if (distanceFromTop > 0 && distanceFromTop < 20 && velocity.y > 0) {
         _isGrounded = true;
         velocity.y = 0;
         position.y = other.position.y - size.y / 2;
+        
+        // Add debug info for platform positioning
+        if (isRemotePlayer) {
+          print('Remote player landed on platform at y=${position.y}, platform y=${other.position.y}');
+        } else {
+          print('Local player landed on platform at y=${position.y}, platform y=${other.position.y}');
+        }
+        
         animation =
             (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
       }
