@@ -32,8 +32,8 @@ class ApeEscapeGame extends FlameGame
     with HasCollisionDetection, KeyboardEvents {
   late final JoystickComponent joystick;
   late final Monkey player;
-  late final double gameWidth;
-  late final double gameHeight;
+  double gameWidth = 720;
+  double gameHeight = 720;
   late final PositionComponent gameLayer;
   GameTimer timer = GameTimer();
   final NakamaWebsocketClient? socket;
@@ -475,9 +475,10 @@ class ApeEscapeGame extends FlameGame
     add(joystick);
 
     // Create player
-    player = Monkey(joystick, worldWidth, gameHeight)
-      ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
-      ..priority = 2;
+    player = 
+        Monkey(joystick, worldWidth, gameHeight)
+          ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
+          ..priority = 2;
     gameLayer.add(player);
 
     // Process update from remote player
@@ -617,6 +618,8 @@ class ApeEscapeGame extends FlameGame
    @override
    void onMount() {
      super.onMount();
+     // Hide the on-screen keyboard if it appears
+     SystemChannels.textInput.invokeMethod('TextInput.hide');
      // Register the pause menu overlay
      overlays.addEntry('pause', (context, game) => PauseMenu(game: this));
    }
@@ -706,7 +709,9 @@ class ApeEscapeGame extends FlameGame
         }
         return KeyEventResult.handled;
       }
-      if (event.logicalKey == LogicalKeyboardKey.space && !_isPaused) {
+      if ((event.logicalKey == LogicalKeyboardKey.space ||
+             event.logicalKey == LogicalKeyboardKey.shiftLeft ||
+             event.logicalKey == LogicalKeyboardKey.shiftRight) && !_isPaused) {
         player.jump();
         return KeyEventResult.handled;
       }
