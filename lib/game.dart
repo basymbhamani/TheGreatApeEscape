@@ -32,8 +32,8 @@ class ApeEscapeGame extends FlameGame
     with HasCollisionDetection, KeyboardEvents {
   late final JoystickComponent joystick;
   late final Monkey player;
-  late final double gameWidth;
-  late final double gameHeight;
+  double gameWidth = 720;
+  double gameHeight = 720;
   late final PositionComponent gameLayer;
   GameTimer timer = GameTimer();
   final NakamaWebsocketClient? socket;
@@ -475,9 +475,10 @@ class ApeEscapeGame extends FlameGame
     add(joystick);
 
     // Create player
-    player = Monkey(joystick, worldWidth, gameHeight)
-      ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
-      ..priority = 2;
+    player = 
+        Monkey(joystick, worldWidth, gameHeight)
+          ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
+          ..priority = 2;
     gameLayer.add(player);
 
     // Process update from remote player
@@ -618,6 +619,7 @@ class ApeEscapeGame extends FlameGame
    void onMount() {
      super.onMount();
      // Register the pause menu overlay
+     SystemChannels.textInput.invokeMethod('TextInput.hide');
      overlays.addEntry('pause', (context, game) => PauseMenu(game: this));
    }
 
