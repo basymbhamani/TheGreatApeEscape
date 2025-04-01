@@ -31,6 +31,7 @@ class HostJoinScreen extends StatefulWidget {
 class _HostJoinScreenState extends State<HostJoinScreen> {
   late NakamaWebsocketClient socket;
   final TextEditingController _codeController = TextEditingController();
+  final TextEditingController _groupNameController = TextEditingController();
   late SessionWrapper _sessionWrapper;
   
   String generateShortCode() {
@@ -282,239 +283,284 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
   }
 }
 
-  void _startGame(String matchId) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => GameWidget(
-          game: ApeEscapeGame(
-            socket: socket,
-            matchId: matchId,
-            session: _sessionWrapper.session,
-          ),
-          backgroundBuilder: (context) => Container(
-            color: const Color(0xFF87CEEB),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleAction(bool isHost) async {
-    if (isHost) {
-      // Generate code and create match outside of the dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-      
-      try {
-        // Create match first
-        final match = await socket.createMatch();
-        String matchId = match.matchId;
-        
-        // Generate a single code
-        final shortCode = generateShortCode();
-        
-        // Store the code and get possibly updated matchId (in case of session refresh)
-        matchId = await storeMatchCode(shortCode, matchId);
-        
-        // Remove loading indicator
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        }
-        
-        // Now show the host dialog with pre-generated code
-        showDialog(
-          context: context,
-          barrierColor: Colors.transparent,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Colors.black, width: 2),
-            ),
-            contentPadding: const EdgeInsets.all(16),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'HOST',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text('Share this code with other players:'),
-                const SizedBox(height: 8),
-                Text(
-                  shortCode,
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 4,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _startGame(matchId);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                  child: const Text('START GAME'),
-                ),
-              ],
-            ),
-          ),
-        );
-      } catch (e) {
-        // Remove loading indicator if it's still showing
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        }
-        
-        print('Error creating match: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create game: $e')),
-        );
-      }
-    } else {
-      // Join flow remains the same
-      showDialog(
-        context: context,
-        barrierColor: Colors.transparent,
-        builder: (context) => AlertDialog(
+  // Function to show the Host dialog
+  void _showHostDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
             side: const BorderSide(color: Colors.black, width: 2),
           ),
           contentPadding: const EdgeInsets.all(16),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'JOIN',
-                style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back, size: 24),
+                  padding: EdgeInsets.zero,
+                  alignment: Alignment.topLeft,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _codeController,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Enter 6-digit Code',
+                const Center(
+                  child: Text(
+                    'HOST',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
                 ),
-                style: const TextStyle(letterSpacing: 4),
-                textCapitalization: TextCapitalization.characters,
-                maxLength: 6,
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () async {
-                  final code = _codeController.text.trim().toUpperCase();
-                  if (code.length == 6) {
-                    try {
-                      print('Attempting to join with code: $code');
-                      
-                      // Display loading indicator
+                const SizedBox(height: 12),
+                const Text(
+                  'Please enter a group name:',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _groupNameController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Group Name',
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      // Show loading dialog
                       showDialog(
                         context: context,
                         barrierDismissible: false,
-                        builder: (BuildContext dialogContext) => const Center(
+                        builder: (context) => const Center(
                           child: CircularProgressIndicator(),
                         ),
                       );
                       
-                      // Get the match ID from Nakama storage
-                      final matchId = await getMatchId(code);
-                      
-                      // Safely remove loading indicator
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                      
-                      if (matchId != null) {
-                        print('Found match ID: $matchId, attempting to join...');
-                        try {
-                          final match = await socket.joinMatch(matchId);
-                          print('Successfully joined match: ${match.matchId}');
-                          Navigator.pop(context); // Close the join dialog
-                          _startGame(match.matchId);
-                        } catch (e) {
-                          print('Error joining match: $e');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Game exists but cannot be joined: $e')),
-                          );
+                      try {
+                        // Create match
+                        final match = await socket.createMatch();
+                        String matchId = match.matchId;
+                        
+                        // Generate a code
+                        final shortCode = generateShortCode();
+                        
+                        // Store the code
+                        matchId = await storeMatchCode(shortCode, matchId);
+                        
+                        // Remove loading indicator
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
                         }
-                      } else {
-                        // No match found in Nakama storage
-                        print('No match found for code: $code');
+                        
+                        // Close the host dialog
+                        Navigator.pop(context);
+                        
+                        // Navigate to pre-game lobby
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PreGameLobby(
+                              code: matchId,
+                              displayCode: shortCode,
+                              socket: socket,
+                              isHost: true,
+                              groupName: _groupNameController.text,
+                              session: _sessionWrapper.session,
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        // Remove loading indicator
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                        
+                        print('Error creating match: $e');
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Invalid game code. Ask the host for the correct code.')),
+                          SnackBar(content: Text('Failed to create game: $e')),
                         );
                       }
-                    } catch (e) {
-                      // Remove loading indicator if it's still showing
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                      
-                      print('Error joining game: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to join game: $e')),
-                      );
-                    }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please enter a 6-digit code')),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Text(
+                      'START',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ),
-                child: const Text('JOIN GAME'),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    }
+        );
+      },
+    );
   }
 
-  Widget _buildButton(String text, Color color, VoidCallback onPressed) {
-    return SizedBox(
-      width: 300,
-      height: 100,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
+  // Function to show the Join dialog
+  void _showJoinDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.black, width: 2),
           ),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 42,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+          contentPadding: const EdgeInsets.all(16),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back, size: 24),
+                  padding: EdgeInsets.zero,
+                  alignment: Alignment.topLeft,
+                ),
+                const Center(
+                  child: Text(
+                    'JOIN',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Please enter a lobby code:',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _codeController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Lobby Code',
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      String lobbyCode = _codeController.text.trim();
+                      if (lobbyCode.isNotEmpty) {
+                        // Show loading dialog
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                        
+                        try {
+                          // Get the match ID from the code
+                          final matchId = await getMatchId(lobbyCode);
+                          
+                          if (matchId != null) {
+                            // Join the match
+                            final match = await socket.joinMatch(matchId);
+                            
+                            // Remove loading indicator
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            }
+                            
+                            // Close the join dialog
+                            Navigator.pop(context);
+                            
+                            // Navigate to pre-game lobby
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PreGameLobby(
+                                  code: matchId,
+                                  displayCode: lobbyCode,
+                                  socket: socket,
+                                  isHost: false,
+                                  session: _sessionWrapper.session,
+                                ),
+                              ),
+                            );
+                          } else {
+                            // Remove loading indicator
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            }
+                            
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Invalid game code')),
+                            );
+                          }
+                        } catch (e) {
+                          // Remove loading indicator
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          }
+                          
+                          print('Error joining match: $e');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to join game: $e')),
+                          );
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Text(
+                      'START',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -532,9 +578,51 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildButton('HOST', Colors.orange, () => _handleAction(true)),
+              // Host Button
+              SizedBox(
+                width: 300,
+                height: 100,
+                child: ElevatedButton(
+                  onPressed: () => _showHostDialog(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Text(
+                    'HOST',
+                    style: TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 40),
-              _buildButton('JOIN', Colors.green, () => _handleAction(false)),
+              // Join Button
+              SizedBox(
+                width: 300,
+                height: 100,
+                child: ElevatedButton(
+                  onPressed: () => _showJoinDialog(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Text(
+                    'JOIN',
+                    style: TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -545,6 +633,7 @@ class _HostJoinScreenState extends State<HostJoinScreen> {
   @override
   void dispose() {
     _codeController.dispose();
+    _groupNameController.dispose();
     super.dispose();
   }
 }

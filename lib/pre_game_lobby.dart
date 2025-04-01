@@ -11,22 +11,65 @@ import 'door.dart';
 import 'game_main_menu.dart';
 import 'package:nakama/nakama.dart';
 import 'dart:convert';
+import 'dart:async';
 
-class PreGameLobby extends StatelessWidget {
+class PreGameLobby extends StatefulWidget {
   final NakamaWebsocketClient socket;
   final String code;
   final bool isHost;
   final String groupName;
   final Session session;
+  final String? displayCode;
 
-  PreGameLobby({
+  const PreGameLobby({
     super.key,
     required this.code,
     required this.socket,
     required this.isHost,
     required this.session,
     this.groupName = 'Group Name',
+    this.displayCode,
   });
+
+  @override
+  State<PreGameLobby> createState() => _PreGameLobbyState();
+}
+
+class _PreGameLobbyState extends State<PreGameLobby> {
+  int _playerCount = 1;
+  late final StreamSubscription<MatchPresenceEvent> _presenceSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _presenceSubscription = widget.socket.onMatchPresence.listen((event) {
+      if (event.matchId == widget.code) {
+        // For joins, add to the count
+        for (final presence in event.joins) {
+          if (presence.userId != widget.session.userId) {
+            setState(() {
+              _playerCount++;
+            });
+          }
+        }
+        
+        // For leaves, subtract from the count
+        for (final presence in event.leaves) {
+          if (presence.userId != widget.session.userId && _playerCount > 1) {
+            setState(() {
+              _playerCount--;
+            });
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _presenceSubscription.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,11 +85,12 @@ class PreGameLobby extends StatelessWidget {
           children: [
             GameWidget(
               game: LobbyGame(
-                code: code,
-                socket: socket,
-                groupName: groupName,
+                code: widget.code,
+                socket: widget.socket,
+                groupName: widget.groupName,
                 context: context,
-                session: session,
+                session: widget.session,
+                isHost: widget.isHost,
               ),
             ),
             Positioned(
@@ -56,22 +100,22 @@ class PreGameLobby extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    groupName,
+                    widget.groupName,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text('Code: $code', style: const TextStyle(fontSize: 16)),
+                  Text('Code: ${widget.displayCode ?? widget.code}', style: const TextStyle(fontSize: 16)),
                 ],
               ),
             ),
-            const Positioned(
+            Positioned(
               top: 20,
               left: 20,
               child: Text(
-                'Ready: 0/1',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                'Players: $_playerCount',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
             Positioned(
@@ -108,6 +152,7 @@ class LobbyGame extends ApeEscapeGame {
   final BuildContext context;
   final NakamaWebsocketClient socket;
   final Session session;
+  final bool isHost;
   static const updateRate = 1.0 / 30.0; // 30 updates per second
   double _timeSinceLastUpdate = 0.0;
   String? _ownUserId;
@@ -119,61 +164,88 @@ class LobbyGame extends ApeEscapeGame {
     required this.groupName,
     required this.context,
     required this.session,
+    required this.isHost,
   }) : super(socket: socket, matchId: code);
 
   @override
   Future<void> onLoad() async {
-    camera.viewport = FixedResolutionViewport(resolution: Vector2(1280, 720));
+    
+    // Set game dimensions
+    gameWidth = size.x;
+    gameHeight = size.y;
+
+    camera.viewport = FixedResolutionViewport(
+      resolution: Vector2(gameWidth, gameHeight),
+    );
     camera.viewfinder.anchor = Anchor.topLeft;
     camera.viewfinder.zoom = 1.0;
-
-    // Initialize joystick
+    
+    // Create ground platform - position higher on the screen
+    final ground = Platform(
+      worldWidth: 2856.0,
+      height: gameHeight,
+      numBlocks: 28,
+      startPosition: Vector2(
+        0,
+        gameHeight - Platform.platformSize, // Position higher than before
+      ),
+      heightInBlocks: 1,
+    );
+    add(ground);
+    
+    // Initialize joystick exactly like in game.dart
     joystick = JoystickComponent(
       knob: CircleComponent(
-        radius: size.y * 0.06,
+        radius: gameHeight * 0.06,
         paint: Paint()..color = const Color(0xFFAAAAAA).withOpacity(0.8),
       ),
       background: CircleComponent(
-        radius: size.y * 0.12,
+        radius: gameHeight * 0.12,
         paint: Paint()..color = const Color(0xFF444444).withOpacity(0.5),
       ),
-      position: Vector2(size.x * 0.1, size.y * 0.7),
+      position: Vector2(gameWidth * 0.1, gameHeight * 0.7),
       priority: 2,
     );
     add(joystick);
-
-    // Create ground platform
-    final ground = Platform(
-      worldWidth: 2856.0,
-      height: 720.0,
-      numBlocks: 28,
-      startPosition: Vector2(0, gameHeight - Platform.platformSize),  // Position at bottom of screen
-      heightInBlocks: 2,  // Make it taller to ensure good collision
-    );
-    add(ground);
-
-    // Create player with adjusted starting position
+    
+    // Initialize player separately
     player = Monkey(
       joystick,
-      2856.0,  // worldWidth (same as ground width)
-      720.0,   // gameHeight (from viewport)
+      2856.0, // worldWidth (same as ground width)
+      gameHeight,
       playerId: session.userId,
       isRemotePlayer: false,
-    )..position = Vector2(400, gameHeight - Platform.platformSize - 100);  // Position above ground
+    )..position = Vector2(
+      400,
+      gameHeight - Platform.platformSize * 2,
+    );
     add(player);
+
+    // Add jump button exactly like in game.dart
+    final jumpButton = HudButtonComponent(
+      button: CircleComponent(
+        radius: gameHeight * 0.12,
+        paint: Paint()..color = const Color(0xFF00FF00).withOpacity(0.5),
+      ),
+      position: Vector2(gameWidth * 0.85, gameHeight * 0.59),
+      priority: 2,
+      onPressed: player.jump,
+    );
+    add(jumpButton);
 
     // Create door
     final door = Door(
-      Vector2(700, 300),
+      Vector2((750) - (Platform.platformSize * 4), gameHeight - Platform.platformSize * 4.5),
       onPlayerEnter: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => GameMainMenu(
-              matchId: code,
-              socket: socket,
-              session: session,
-            ),
+            builder:
+                (context) => GameMainMenu(
+                  matchId: code,
+                  socket: socket,
+                  session: session,
+                ),
           ),
         );
       },
@@ -183,6 +255,11 @@ class LobbyGame extends ApeEscapeGame {
     // Get our own user ID from the session
     _ownUserId = session.userId;
     print("Own user ID: $_ownUserId");
+    
+    // Print the lobby code for the host
+    if (isHost) {
+      print("Lobby Code: $code");
+    }
 
     // Set up match state handling
     socket.onMatchData.listen(_handleMatchData);
@@ -236,22 +313,47 @@ class LobbyGame extends ApeEscapeGame {
 
       print("Received update from player: $playerId");
 
-      final position = Vector2(decoded['x'] as double, decoded['y'] as double);
-      final isMoving = decoded['isMoving'] as bool;
-      final isJumping = decoded['isJumping'] as bool;
-      final scaleX = decoded['scaleX'] as double;
+      final x = decoded['x'] as double?;
+      final y = decoded['y'] as double?;
+      final remoteScreenHeight = (decoded['screenHeight'] as num?)?.toDouble();
+
+      if (x == null || y == null) {
+        print('Invalid position data received from $playerId');
+        return;
+      }
+      
+      // Store remote screen height and calculate offset using the inherited field
+      if (remoteScreenHeight != null) {
+        remoteScreenHeights[playerId] = remoteScreenHeight;
+        platformYOffset = (gameHeight - remoteScreenHeight) / 2; // Use inherited field
+        print('Calculated platformYOffset: $platformYOffset for player $playerId');
+      } else {
+         // Use existing offset or default to 0 if no height received yet for this player
+         print('No screenHeight received from $playerId, using existing inherited offset: $platformYOffset');
+      }
+      
+      // Apply offset to Y position using the inherited field
+      // platformYOffset defaults to 0.0 in ApeEscapeGame, so it's safe to add directly
+      final adjustedY = y + platformYOffset; 
+
+      final isMoving = decoded['isMoving'] as bool? ?? false;
+      final isJumping = decoded['isJumping'] as bool? ?? false;
+      final scaleX = (decoded['scaleX'] as num?)?.toDouble() ?? 1.0;
 
       if (!remotePlayers.containsKey(playerId)) {
         _addRemotePlayer(playerId);
       }
+      
+      // Update remote player with adjusted position
       remotePlayers[playerId]!.updateRemoteState(
-        position,
+        Vector2(x, adjustedY),
         isMoving,
         isJumping,
         scaleX,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('Error handling match data: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 
@@ -260,8 +362,8 @@ class LobbyGame extends ApeEscapeGame {
       print("Adding remote player: $playerId");
       final remotePlayer = Monkey(
         null,
-        2856.0,  // worldWidth (same as ground width)
-        720.0,   // gameHeight (from viewport)
+        2856.0, // worldWidth (same as ground width)
+        gameHeight,
         playerId: playerId,
         isRemotePlayer: true,
       )..position = Vector2(400, 200);
@@ -292,13 +394,15 @@ class LobbyGame extends ApeEscapeGame {
   }
 
   void _sendPlayerState() {
+    // Use inherited platformYOffset (defaults to 0.0)
     final state = {
       'playerId': _ownUserId,
       'x': player.position.x,
-      'y': player.position.y,
-      'isMoving': joystick.delta.x.abs() > 0,
+      'y': player.position.y - platformYOffset, // Send adjusted Y using inherited offset
+      'isMoving': (joystick?.delta.x.abs() ?? 0) > 0,
       'isJumping': !player.isGrounded,
       'scaleX': player.scale.x,
+      'screenHeight': gameHeight, // Send local screen height
     };
 
     final encodedData = utf8.encode(jsonEncode(state));
