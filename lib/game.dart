@@ -26,7 +26,8 @@ import 'door.dart';
 import 'dart:convert';
 import 'pause_menu.dart';
 import 'pause_button.dart';
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'host_join_screen.dart';
 
 class ApeEscapeGame extends FlameGame
     with HasCollisionDetection, KeyboardEvents {
@@ -43,13 +44,13 @@ class ApeEscapeGame extends FlameGame
   static const updateRate = 1.0 / 60.0; // 30 updates per second
   double _timeSinceLastUpdate = 0.0;
   bool _isPaused = false;
-  
+
   // Platform height offset for different screen sizes
   double platformYOffset = 0.0;
-  
+
   // Map to store other players' screen heights
   final Map<String, double> remoteScreenHeights = {};
-  
+
   // Debug mode
   static bool showHitboxes = true;
 
@@ -69,7 +70,7 @@ class ApeEscapeGame extends FlameGame
     // Get actual screen dimensions
     gameWidth = size.x;
     gameHeight = size.y;
-    
+
     // Print device screen dimensions for debugging
     print('Device screen dimensions: $gameWidth x $gameHeight');
 
@@ -222,7 +223,7 @@ class ApeEscapeGame extends FlameGame
     );
     gameLayer.add(widePlatform);
 
-       // Add a row of clouds after the wide platform
+    // Add a row of clouds after the wide platform
     final cloudStartX = Platform.platformSize * (22 + 8 + 15);
     final cloudY = gameHeight - Platform.platformSize * 3;
     final cloudSpacing = Platform.platformSize * 3.5;
@@ -475,7 +476,7 @@ class ApeEscapeGame extends FlameGame
     add(joystick);
 
     // Create player
-    player = 
+    player =
         Monkey(joystick, worldWidth, gameHeight)
           ..position = Vector2(200, gameHeight - Platform.platformSize * 2)
           ..priority = 2;
@@ -511,32 +512,61 @@ class ApeEscapeGame extends FlameGame
             print('Processing update from player: $playerId');
 
             // Handle pause events
-             if (event.opCode == 2) {
-               final type = data['type'] as String?;
-               if (type == 'pause') {
-                 final isPaused = data['isPaused'] as bool? ?? false;
-                 if (isPaused) {
-                   _isPaused = true;
-                   timer.pause();
-                   player.disableControls();
-                   overlays.add('pause');
-                   pauseEngine();
-                 } else {
-                   _isPaused = false;
-                   timer.start();
-                   player.enableControls();
-                   overlays.remove('pause');
-                   resumeEngine();
-                 }
-                 return;
-               } else if (type == 'restart') {
-                 // Handle restart signal from other players
-                 resetLevel();
-                 return;
-               }
-             }
+            if (event.opCode == 2) {
+              final type = data['type'] as String?;
+              if (type == 'pause') {
+                final isPaused = data['isPaused'] as bool? ?? false;
+                if (isPaused) {
+                  _isPaused = true;
+                  timer.pause();
+                  player.disableControls();
+                  overlays.add('pause');
+                  pauseEngine();
+                } else {
+                  _isPaused = false;
+                  timer.start();
+                  player.enableControls();
+                  overlays.remove('pause');
+                  resumeEngine();
+                }
+                return;
+              } else if (type == 'restart') {
+                // Handle restart signal from other players
+                resetLevel();
+                return;
+              } else if (type == 'return_to_menu') {
+                // Handle return to menu signal from other players
+                final BuildContext? ctx = buildContext;
+                if (ctx != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    // Navigate to host join screen
+                    Navigator.of(ctx).popUntil((route) => route.isFirst);
 
-            
+                    // Create a new client with the environment variables
+                    final nakamaClient = getNakamaClient(
+                      host: dotenv.env['NAKAMA_HOST']!,
+                      ssl: dotenv.env['NAKAMA_SSL']!.toLowerCase() == 'true',
+                      serverKey: dotenv.env['NAKAMA_SERVER_KEY']!,
+                      grpcPort: int.parse(dotenv.env['NAKAMA_GRPC_PORT']!),
+                      httpPort: int.parse(dotenv.env['NAKAMA_HTTP_PORT']!),
+                    );
+
+                    // Push the HostJoinScreen
+                    Navigator.pushReplacement(
+                      ctx,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => HostJoinScreen(
+                              nakamaClient: nakamaClient,
+                              session: session!,
+                            ),
+                      ),
+                    );
+                  });
+                }
+                return;
+              }
+            }
 
             final x = (data['x'] as num?)?.toDouble();
             final y = (data['y'] as num?)?.toDouble();
@@ -547,20 +577,23 @@ class ApeEscapeGame extends FlameGame
             }
 
             // Get remote screen height information
-            final remoteScreenHeight = (data['screenHeight'] as num?)?.toDouble();
+            final remoteScreenHeight =
+                (data['screenHeight'] as num?)?.toDouble();
             if (remoteScreenHeight != null) {
               // Store the remote player's screen height
               remoteScreenHeights[playerId] = remoteScreenHeight;
-              
+
               // Calculate the offset based on screen height difference
               platformYOffset = (gameHeight - remoteScreenHeight) / 2;
-              print('Updated platformYOffset to $platformYOffset based on screen height difference');
+              print(
+                'Updated platformYOffset to $platformYOffset based on screen height difference',
+              );
             }
 
             final isMoving = data['isMoving'] as bool? ?? false;
             final isJumping = data['isJumping'] as bool? ?? false;
             final scaleX = (data['scaleX'] as num?)?.toDouble() ?? 1.0;
-            
+
             // Apply the offset to the remote player's Y position
             final adjustedY = y + platformYOffset;
 
@@ -615,18 +648,16 @@ class ApeEscapeGame extends FlameGame
     add(jumpButton);
   }
 
-   @override
-   void onMount() {
-     super.onMount();
-     // Register the pause menu overlay
-     SystemChannels.textInput.invokeMethod('TextInput.hide');
-     overlays.addEntry('pause', (context, game) => PauseMenu(game: this));
-   }
+  @override
+  void onMount() {
+    super.onMount();
+    // Register the pause menu overlay
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+    overlays.addEntry('pause', (context, game) => PauseMenu(game: this));
+  }
 
   @override
   void update(double dt) {
-    
-
     // Calculate the camera window boundaries
     final windowLeft =
         -gameLayer.position.x + gameWidth * cameraWindowMarginRatio;
@@ -657,7 +688,9 @@ class ApeEscapeGame extends FlameGame
         final data = {
           'playerId': session!.userId,
           'x': player.position.x,
-          'y': player.position.y - platformYOffset, // Apply inverse offset when sending
+          'y':
+              player.position.y -
+              platformYOffset, // Apply inverse offset when sending
           'isMoving': (joystick?.delta.x.abs() ?? 0) > 0,
           'isJumping': !player.isGrounded,
           'scaleX': player.scale.x,
@@ -719,114 +752,112 @@ class ApeEscapeGame extends FlameGame
   // Update remote players when offset changes
   void updateRemotePlayersWithOffset() {
     for (final remotePlayer in remotePlayers.values) {
-      final originalY = remotePlayer.position.y - platformYOffset; // Remove old offset
+      final originalY =
+          remotePlayer.position.y - platformYOffset; // Remove old offset
       remotePlayer.position.y = originalY + platformYOffset; // Apply new offset
     }
   }
-  
+
   // Override the setter to update all remote players when offset changes
   void setPlatformYOffset(double offset) {
     double oldOffset = platformYOffset;
     platformYOffset = offset;
     print('Platform Y offset set to: $offset (changed from $oldOffset)');
-    
+
     if (oldOffset != offset) {
       updateRemotePlayersWithOffset();
     }
   }
 
-
   void pauseGame() {
-     if (!_isPaused) {
-       _isPaused = true;
-       timer.pause();
-       player.disableControls();
-       overlays.add('pause');
-       pauseEngine();
- 
-       // Send pause signal to other players
-       if (socket != null && matchId != null && session != null) {
-         final data = {
-           'playerId': session!.userId,
-           'type': 'pause',
-           'isPaused': true,
-         };
- 
-         socket!.sendMatchData(
-           matchId: matchId!,
-           opCode: 2,
-           data: List<int>.from(utf8.encode(jsonEncode(data))),
-         );
-       }
-     }
-   }
- 
-   void resumeGame() {
-     if (_isPaused) {
-       _isPaused = false;
-       timer.start();
-       player.enableControls();
-       overlays.remove('pause');
-       resumeEngine();
- 
-       // Ensure player is visible and in correct state
-       player.isVisible = true;
-       player.opacity = 1.0;
-       if ((player.joystick?.delta.x.abs() ?? 0) > 0) {
-         player.animation = player.runAnimation;
-       } else {
-         player.animation = player.idleAnimation;
-       }
- 
-       // Send resume signal to other players
-       if (socket != null && matchId != null && session != null) {
-         final data = {
-           'playerId': session!.userId,
-           'type': 'pause',
-           'isPaused': false,
-         };
- 
-         socket!.sendMatchData(
-           matchId: matchId!,
-           opCode: 2,
-           data: List<int>.from(utf8.encode(jsonEncode(data))),
-         );
-       }
-     }
-   }
- 
-   void resetLevel() {
-     // Reset the player
-     player.reset();
- 
-     // Reset the timer
-     timer.reset();
- 
-     // Reset the button if it exists
-     final button = gameLayer.children.whereType<Button>().firstOrNull;
-     if (button != null) {
-       button.reset();
-     }
- 
-     // Reset any other game state that needs to be reset
-     _isPaused = false;
-     timer.start();
-     player.enableControls();
-     overlays.remove('pause');
-     resumeEngine();
-   }
- 
-   void sendRestartSignal() {
-     if (socket != null && matchId != null && session != null) {
-       final data = {'playerId': session!.userId, 'type': 'restart'};
- 
-       socket!.sendMatchData(
-         matchId: matchId!,
-         opCode: 2,
-         data: List<int>.from(utf8.encode(jsonEncode(data))),
-       );
-     }
-   }
+    if (!_isPaused) {
+      _isPaused = true;
+      timer.pause();
+      player.disableControls();
+      overlays.add('pause');
+      pauseEngine();
+
+      // Send pause signal to other players
+      if (socket != null && matchId != null && session != null) {
+        final data = {
+          'playerId': session!.userId,
+          'type': 'pause',
+          'isPaused': true,
+        };
+
+        socket!.sendMatchData(
+          matchId: matchId!,
+          opCode: 2,
+          data: List<int>.from(utf8.encode(jsonEncode(data))),
+        );
+      }
+    }
+  }
+
+  void resumeGame() {
+    if (_isPaused) {
+      _isPaused = false;
+      timer.start();
+      player.enableControls();
+      overlays.remove('pause');
+      resumeEngine();
+
+      // Ensure player is visible and in correct state
+      player.isVisible = true;
+      player.opacity = 1.0;
+      if ((player.joystick?.delta.x.abs() ?? 0) > 0) {
+        player.animation = player.runAnimation;
+      } else {
+        player.animation = player.idleAnimation;
+      }
+
+      // Send resume signal to other players
+      if (socket != null && matchId != null && session != null) {
+        final data = {
+          'playerId': session!.userId,
+          'type': 'pause',
+          'isPaused': false,
+        };
+
+        socket!.sendMatchData(
+          matchId: matchId!,
+          opCode: 2,
+          data: List<int>.from(utf8.encode(jsonEncode(data))),
+        );
+      }
+    }
+  }
+
+  void resetLevel() {
+    // Reset the player
+    player.reset();
+
+    // Reset the timer
+    timer.reset();
+
+    // Reset the button if it exists
+    final button = gameLayer.children.whereType<Button>().firstOrNull;
+    if (button != null) {
+      button.reset();
+    }
+
+    // Reset any other game state that needs to be reset
+    _isPaused = false;
+    timer.start();
+    player.enableControls();
+    overlays.remove('pause');
+    resumeEngine();
+  }
+
+  void sendRestartSignal() {
+    if (socket != null && matchId != null && session != null) {
+      final data = {'playerId': session!.userId, 'type': 'restart'};
+
+      socket!.sendMatchData(
+        matchId: matchId!,
+        opCode: 2,
+        data: List<int>.from(utf8.encode(jsonEncode(data))),
+      );
+    }
+  }
 }
-
-
