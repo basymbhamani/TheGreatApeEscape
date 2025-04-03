@@ -23,31 +23,42 @@ class Cloud extends Platform {
     required Vector2 startPosition,
     int numBlocks = 1,
     int heightInBlocks = 1,
-  })  : initialPosition = startPosition.clone(),
-        super(
-          worldWidth: worldWidth,
-          height: height,
-          numBlocks: numBlocks,
-          startPosition: startPosition,
-          heightInBlocks: heightInBlocks,
-        );
+  }) : initialPosition = startPosition.clone(),
+       super(
+         worldWidth: worldWidth,
+         height: height,
+         numBlocks: numBlocks,
+         startPosition: startPosition,
+         heightInBlocks: heightInBlocks,
+       );
 
   @override
   Future<void> onLoad() async {
     final sprite = await Sprite.load('Cloud/cloud.png');
     final cloudSprite = SpriteComponent(
       sprite: sprite,
-      size: Vector2(Platform.platformSize * widthScale, Platform.platformSize * heightScale),
+      size: Vector2(
+        Platform.platformSize * widthScale,
+        Platform.platformSize * heightScale,
+      ),
     );
     cloudSprite.opacity = opacity;
     add(cloudSprite);
 
     // Add collision hitbox that matches the cloud's total height
-    add(RectangleHitbox(
-      size: Vector2(Platform.platformSize * numBlocks - 60, Platform.platformSize), // Increased horizontal padding from 20 to 40
-      position: Vector2(0, 60), // Adjusted position to better match visual cloud
-      collisionType: CollisionType.passive,
-    )..debugMode = ApeEscapeGame.showHitboxes);
+    add(
+      RectangleHitbox(
+        size: Vector2(
+          Platform.platformSize * numBlocks - 60,
+          Platform.platformSize,
+        ), // Increased horizontal padding from 20 to 40
+        position: Vector2(
+          0,
+          60,
+        ), // Adjusted position to better match visual cloud
+        collisionType: CollisionType.passive,
+      )..debugMode = ApeEscapeGame.showHitboxes,
+    );
   }
 
   void startBreaking() {
@@ -58,34 +69,49 @@ class Cloud extends Platform {
   }
 
   @override
-  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+  void onCollisionStart(
+    Set<Vector2> intersectionPoints,
+    PositionComponent other,
+  ) {
     if (other is Monkey) {
       print("\n=== Cloud Collision Debug ===");
       print("Monkey position: ${other.position}");
       print("Monkey velocity: ${other.velocity}");
       print("Cloud position: $position");
-      print("Cloud hitbox size: ${children.whereType<RectangleHitbox>().first.size}");
-      print("Cloud hitbox position: ${children.whereType<RectangleHitbox>().first.position}");
-      
+      print(
+        "Cloud hitbox size: ${children.whereType<RectangleHitbox>().first.size}",
+      );
+      print(
+        "Cloud hitbox position: ${children.whereType<RectangleHitbox>().first.position}",
+      );
+
       // Handle platform behavior
       final verticalOverlap = other.position.y + other.size.y / 2 - position.y;
       print("Vertical overlap: $verticalOverlap");
-      
+
       // Simplified collision check - just check if monkey is above cloud and within range
-      if (other.position.y + other.size.y / 2 > position.y && 
-          other.position.y + other.size.y / 2 < position.y + 100) { // Increased range to 100
+      if (other.position.y + other.size.y / 2 > position.y &&
+          other.position.y + other.size.y / 2 < position.y + 100) {
+        // Increased range to 100
         print("Platform conditions met - grounding monkey");
         other.isGrounded = true;
         other.velocity.y = 0;
-         // Snap to cloud surface
-        other.animation = (other.joystick?.delta.x.abs() ?? 0) > 0 ? other.runAnimation : other.idleAnimation;
+        // Snap to cloud surface
+        other.animation =
+            (other.joystick?.delta.x.abs() ?? 0) > 0
+                ? other.runAnimation
+                : other.idleAnimation;
         _monkeyOnCloud = other;
       } else {
         print("Platform conditions NOT met:");
-        print("Above cloud: ${other.position.y + other.size.y / 2 > position.y}");
-        print("Within range: ${other.position.y + other.size.y / 2 < position.y + 100}");
+        print(
+          "Above cloud: ${other.position.y + other.size.y / 2 > position.y}",
+        );
+        print(
+          "Within range: ${other.position.y + other.size.y / 2 < position.y + 100}",
+        );
       }
-      
+
       // Start breaking animation
       print("Starting cloud breaking animation");
       startBreaking();
@@ -121,7 +147,7 @@ class Cloud extends Platform {
             sprite.opacity = opacity;
           });
           _blinkCount++;
-          
+
           if (_blinkCount >= _totalBlinks) {
             _isFlashing = false;
             opacity = 0.0;
@@ -129,12 +155,12 @@ class Cloud extends Platform {
             children.whereType<SpriteComponent>().forEach((sprite) {
               sprite.opacity = opacity;
             });
-            
+
             // Keep the cloud in the game layer but make it invisible
             // This ensures collision detection continues to work
             final parentRef = parent;
             final positionRef = position.clone();
-            
+
             // Remove the cloud after a short delay to ensure proper collision handling
             Future.delayed(const Duration(milliseconds: 100), () {
               removeFromParent();

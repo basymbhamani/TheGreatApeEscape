@@ -5,6 +5,7 @@ import 'package:flame/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nakama/nakama.dart';
+import 'dart:ui' show lerpDouble;
 import 'monkey.dart';
 import 'platform.dart';
 import 'vine.dart';
@@ -59,6 +60,12 @@ class ApeEscapeGame extends FlameGame
 
   // Camera window settings
   static const double cameraWindowMarginRatio = 0.4;
+
+  // Camera smoothing factor (lower = smoother but slower)
+  static const double cameraSmoothingFactor = 0.05;
+
+  // Target camera position - initialized to null to indicate it hasn't been set yet
+  double? _targetCameraX;
 
   ApeEscapeGame({this.socket, this.matchId, this.session}) {
     gameLayer = PositionComponent();
@@ -664,13 +671,40 @@ class ApeEscapeGame extends FlameGame
     final windowRight =
         -gameLayer.position.x + gameWidth * (1 - cameraWindowMarginRatio);
 
+    // Initialize target camera position if not set
+    if (_targetCameraX == null) {
+      _targetCameraX = gameLayer.position.x;
+    }
+
     // Check if player is outside the camera window
     if (player.position.x < windowLeft) {
-      gameLayer.position.x =
+      // Set target position when player is outside left boundary
+      _targetCameraX =
           -(player.position.x - gameWidth * cameraWindowMarginRatio);
     } else if (player.position.x > windowRight) {
-      gameLayer.position.x =
+      // Set target position when player is outside right boundary
+      _targetCameraX =
           -(player.position.x - gameWidth * (1 - cameraWindowMarginRatio));
+    }
+
+    // Apply smooth camera movement using linear interpolation with safety checks
+    if (_targetCameraX != null &&
+        (_targetCameraX! - gameLayer.position.x).abs() > 0.01) {
+      try {
+        // Use a safer approach with explicit calculations instead of lerpDouble
+        double currentX = gameLayer.position.x;
+        double targetX = _targetCameraX!;
+        double newX = currentX + (targetX - currentX) * cameraSmoothingFactor;
+
+        // Assign the new position
+        gameLayer.position.x = newX;
+      } catch (e) {
+        // Fallback to direct assignment if interpolation fails
+        print('Camera interpolation error: $e');
+        if (_targetCameraX != null) {
+          gameLayer.position.x = _targetCameraX!;
+        }
+      }
     }
 
     // Clamp game layer position to world boundaries

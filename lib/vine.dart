@@ -45,7 +45,7 @@ class Vine extends PositionComponent with CollisionCallbacks {
     // Add collision hitbox for climbing that matches actual vine length
     add(RectangleHitbox(
       size: Vector2(hitboxWidth, vineHeight), // Use calculated vine height instead of total size
-      position: Vector2((pieceSize - hitboxWidth) / 2, 13), // Center the hitbox and move it down 13 pixels
+      position: Vector2((pieceSize - hitboxWidth) / 2, 20), // Center the hitbox and move it down 13 pixels
       collisionType: CollisionType.passive,
     )..debugMode = ApeEscapeGame.showHitboxes);
   }
