@@ -7,7 +7,7 @@ import 'game.dart';
 class GameBlock extends PositionComponent with CollisionCallbacks {
   static const double blockSize = 56.0; // Same size as platform blocks
   final Vector2 startPosition;
-  static const int numBlocks = 3; // Number of blocks in the sequence
+  static const int numBlocks = 5; // Number of blocks in the sequence
 
   GameBlock({
     required this.startPosition,

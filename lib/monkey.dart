@@ -27,7 +27,6 @@ class Monkey extends SpriteAnimationComponent
   bool _isBlinking = false;
   bool _isClimbing = false;
   bool _isBlockedByBush = false;
-  bool _isBlockedByMonkey = false;
   Vine? _currentVine;
   PositionComponent? _currentPlatform;
   int _blinkCount = 0;
@@ -39,21 +38,21 @@ class Monkey extends SpriteAnimationComponent
   double _blinkTimer = 0;
   VoidCallback? _onReset;
   static Vector2? checkpointPosition;
-  
+
   // Static size and movement constants
-  static const double monkeyWidth = 126.0;  // 84 * 1.5
-  static const double monkeyHeight = 126.0;  // 84 * 1.5
-  static const double hitboxWidth = 75.6;    // 50.4 * 1.5
-  static const double hitboxHeight = 37.8;   // 25.2 * 1.5
-  static const double hitboxOffsetX = 25.2;  // 16.8 * 1.5
-  static const double hitboxOffsetY = 88.2;  // 58.8 * 1.5
-  
+  static const double monkeyWidth = 126.0; // 84 * 1.5
+  static const double monkeyHeight = 126.0; // 84 * 1.5
+  static const double hitboxWidth = 75.6; // 50.4 * 1.5
+  static const double hitboxHeight = 37.8; // 25.2 * 1.5
+  static const double hitboxOffsetX = 25.2; // 16.8 * 1.5
+  static const double hitboxOffsetY = 88.2; // 58.8 * 1.5
+
   // Movement constants
-  static const double moveSpeed = 6.0;       // Keeping current speed
+  static const double moveSpeed = 6.0; // Keeping current speed
   static const double jumpVelocity = -315.0; // -180 * 1.75
-  static const double climbSpeed = 105.0;    // 60 * 1.75
+  static const double climbSpeed = 105.0; // 60 * 1.75
   static const double bounceVelocity = -840.0; // -480 * 1.75
-  static const double maxFallSpeed = 525.0;    // 300 * 1.75
+  static const double maxFallSpeed = 525.0; // 300 * 1.75
 
   final String? playerId;
   final bool isRemotePlayer;
@@ -65,7 +64,6 @@ class Monkey extends SpriteAnimationComponent
   set isGrounded(bool value) => _isGrounded = value;
   bool get isVisible => _isVisible;
   set isVisible(bool value) => _isVisible = value;
-  
 
   late final SpriteAnimation idleAnimation;
   late final SpriteAnimation runAnimation;
@@ -80,14 +78,14 @@ class Monkey extends SpriteAnimationComponent
   }) : worldHeight = gameHeight;
 
   void enableControls() {
-     _controlsEnabled = true;
-   }
- 
-   void disableControls() {
-     _controlsEnabled = false;
-     velocity = Vector2.zero();
-     animation = idleAnimation;
-   }
+    _controlsEnabled = true;
+  }
+
+  void disableControls() {
+    _controlsEnabled = false;
+    velocity = Vector2.zero();
+    animation = idleAnimation;
+  }
 
   void setOnReset(VoidCallback callback) {
     _onReset = callback;
@@ -100,13 +98,12 @@ class Monkey extends SpriteAnimationComponent
     _blinkTimer = 0;
     _isClimbing = false;
     _isBlockedByBush = false;
-    _isBlockedByMonkey = false;
     _currentVine = null;
     _currentPlatform = null;
     position =
         checkpointPosition ??
         Vector2(
-          200,
+          2500,
           worldHeight - Platform.platformSize - (worldHeight * 0.25) - 300,
         );
     opacity = 1.0;
@@ -125,11 +122,6 @@ class Monkey extends SpriteAnimationComponent
   void stopMoving() {
     _isBlockedByBush = true;
     velocity.x = 0;
-    animation = idleAnimation;
-  }
-
-  void stopMovingFromMonkey() {
-    _isBlockedByMonkey = true;
     animation = idleAnimation;
   }
 
@@ -157,21 +149,22 @@ class Monkey extends SpriteAnimationComponent
     } else {
       animation = idleAnimation;
     }
-    
+
     // For remote players, make sure they look correct when on platforms
     if (_isGrounded) {
       // Check if we're overlapping with a platform
       PositionComponent? closestPlatform;
       double closestDistance = double.infinity;
-      
+
       for (final component in parent!.children) {
-        if (component is Platform && 
-            position.x + size.x/2 >= component.position.x && 
-            position.x - size.x/2 <= component.position.x + component.size.x) {
-          
+        if (component is Platform &&
+            position.x + size.x / 2 >= component.position.x &&
+            position.x - size.x / 2 <=
+                component.position.x + component.size.x) {
           // Calculate vertical distance to this platform
-          final distance = (position.y + size.y / 2 - component.position.y).abs();
-          
+          final distance =
+              (position.y + size.y / 2 - component.position.y).abs();
+
           // If this is the closest platform so far, remember it
           if (distance < closestDistance) {
             closestPlatform = component;
@@ -179,12 +172,14 @@ class Monkey extends SpriteAnimationComponent
           }
         }
       }
-      
+
       // If we found a platform and we're close enough, snap to it
       if (closestPlatform != null && closestDistance < 50) {
         // We're over a platform, adjust height to match it properly
-        position.y = closestPlatform.position.y - size.y/2;
-        print('Remote player aligned to platform at y=${position.y}, platform y=${closestPlatform.position.y}');
+        position.y = closestPlatform.position.y - size.y / 2;
+        print(
+          'Remote player aligned to platform at y=${position.y}, platform y=${closestPlatform.position.y}',
+        );
       }
     }
   }
@@ -253,26 +248,30 @@ class Monkey extends SpriteAnimationComponent
     if (other is Bush) {
       _isBlockedByBush = true;
     } else if (other is Mushroom) {
-      velocity.y = -4200;  // -2400 * 1.75
+      velocity.y = -4200; // -2400 * 1.75
       _isGrounded = false;
       animation = jumpAnimation;
     } else if (other is Platform && !_isDead) {
       // Calculate vertical distance from platform top
       final distanceFromTop = position.y + size.y / 2 - other.position.y;
-      
+
       // Check if we're landing on top of the platform (with a reasonable margin)
       if (distanceFromTop > 0 && distanceFromTop < 20 && velocity.y > 0) {
         _isGrounded = true;
         velocity.y = 0;
         position.y = other.position.y - size.y / 2;
-        
+
         // Add debug info for platform positioning
         if (isRemotePlayer) {
-          print('Remote player landed on platform at y=${position.y}, platform y=${other.position.y}');
+          print(
+            'Remote player landed on platform at y=${position.y}, platform y=${other.position.y}',
+          );
         } else {
-          print('Local player landed on platform at y=${position.y}, platform y=${other.position.y}');
+          print(
+            'Local player landed on platform at y=${position.y}, platform y=${other.position.y}',
+          );
         }
-        
+
         animation =
             (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
       }
@@ -306,43 +305,6 @@ class Monkey extends SpriteAnimationComponent
       die();
     } else if (other is Door) {
       print("Monkey collided with door!");
-    } else if (other is Monkey && !_isDead && !other.isDead) {
-      // Handle monkey-to-monkey collisions
-      final verticalDiff = (position.y + size.y / 2) - other.position.y;
-
-      if (verticalDiff > 0 && verticalDiff < size.y * 0.4 && velocity.y >= 0) {
-        // Landing on top of another monkey - treat as a platform
-        _isGrounded = true;
-        velocity.y = 0;
-        _currentPlatform = other;
-        animation = (joystick?.delta.x.abs() ?? 0) > 0 ? runAnimation : idleAnimation;
-      } else if (verticalDiff < 0 && -verticalDiff < size.y * 0.4 && other.velocity.y >= 0) {
-        // Other monkey landing on top
-        other.isGrounded = true;
-        other.velocity.y = 0;
-        other._currentPlatform = this;
-        other.animation = (other.joystick?.delta.x.abs() ?? 0) > 0 ? other.runAnimation : other.idleAnimation;
-      } else {
-        // Horizontal collision - prevent walking through each other
-        final dx = position.x - other.position.x;
-        if (dx > 0) {
-          // This monkey is on the right
-          stopMovingFromMonkey();
-          velocity.x = 0;
-          if (other.velocity.x > 0) {
-            other.stopMovingFromMonkey();
-            other.velocity.x = 0;
-          }
-        } else {
-          // This monkey is on the left
-          stopMovingFromMonkey();
-          velocity.x = 0;
-          if (other.velocity.x < 0) {
-            other.stopMovingFromMonkey();
-            other.velocity.x = 0;
-          }
-        }
-      }
     }
     super.onCollisionStart(intersectionPoints, other);
   }
@@ -366,9 +328,13 @@ class Monkey extends SpriteAnimationComponent
       Future.delayed(Duration(milliseconds: 200), () {
         if (_currentPlatform == other) {
           // Only unground if we haven't found another cloud
-          if (!children.any((component) => 
-              component is CollisionCallbacks && 
-              component.activeCollisions.any((collision) => collision is Cloud))) {
+          if (!children.any(
+            (component) =>
+                component is CollisionCallbacks &&
+                component.activeCollisions.any(
+                  (collision) => collision is Cloud,
+                ),
+          )) {
             _isGrounded = false;
             _currentPlatform = null;
           }
@@ -377,12 +343,6 @@ class Monkey extends SpriteAnimationComponent
     } else if (other is Vine && other == _currentVine) {
       _currentVine = null;
       _isClimbing = false;
-    } else if (other is Monkey && !_isDead && !other.isDead) {
-      _isBlockedByMonkey = false;
-      if (_currentPlatform == other) {
-        _isGrounded = false;
-        _currentPlatform = null;
-      }
     }
     super.onCollisionEnd(other);
   }
@@ -433,31 +393,8 @@ class Monkey extends SpriteAnimationComponent
 
     if (!_isClimbing) {
       if (isMoving) {
-        if (!_isBlockedByBush && !_isBlockedByMonkey) {
+        if (!_isBlockedByBush) {
           velocity.x = (joystick?.delta.x ?? 0) * moveSpeed;
-        } else if (_isBlockedByMonkey) {
-          // If we're on top of another monkey, allow movement
-          if (_currentPlatform is Monkey) {
-            velocity.x = (joystick?.delta.x ?? 0) * moveSpeed;
-          } else {
-            // If we're colliding with the side of another monkey, prevent movement in that direction
-            final dx = position.x - (_currentPlatform?.position.x ?? 0);
-            if (dx > 0) {
-              // We're on the right side of the other monkey
-              if ((joystick?.delta.x ?? 0) < 0) {
-                velocity.x = 0; // Can't move left
-              } else {
-                velocity.x = (joystick?.delta.x ?? 0) * moveSpeed; // Can move right
-              }
-            } else {
-              // We're on the left side of the other monkey
-              if ((joystick?.delta.x ?? 0) > 0) {
-                velocity.x = 0; // Can't move right
-              } else {
-                velocity.x = (joystick?.delta.x ?? 0) * moveSpeed; // Can move left
-              }
-            }
-          }
         } else {
           velocity.x = 0;
         }
@@ -483,8 +420,6 @@ class Monkey extends SpriteAnimationComponent
           // Ensure we stay properly positioned on clouds
           position.y = _currentPlatform!.position.y - size.y / 2;
           velocity.y = 0;
-        } else if (_currentPlatform is Monkey) {
-          velocity.y = 0;
         }
       }
     }
@@ -492,12 +427,12 @@ class Monkey extends SpriteAnimationComponent
     position.x += velocity.x * dt;
 
     if (!_isGrounded && !_isClimbing) {
-      velocity.y = (velocity.y + gravity * dt).clamp(-maxFallSpeed, maxFallSpeed);
+      velocity.y = (velocity.y + gravity * dt).clamp(
+        -maxFallSpeed,
+        maxFallSpeed,
+      );
       position.y += velocity.y * dt;
       animation = jumpAnimation;
-    } else if (_currentPlatform is Monkey) {
-      velocity.y = 0;
-      animation = isMoving ? runAnimation : idleAnimation;
     } else {
       position.y += velocity.y * dt;
       animation = isMoving ? runAnimation : idleAnimation;
