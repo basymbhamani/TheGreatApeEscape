@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'game.dart';
 import 'host_join_screen.dart';
+import 'settings_menu.dart';
 import 'package:nakama/nakama.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -32,8 +33,15 @@ class PauseMenu extends StatelessWidget {
             _buildImageButton(
               imagePath: 'assets/images/settings.png',
               onPressed: () {
-                // TODO: Implement settings to menu functionality
-                game.resumeGame();
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    opaque: false,
+                    pageBuilder:
+                        (context, animation, secondaryAnimation) =>
+                            SettingsMenu(game: game),
+                  ),
+                );
               },
             ),
             _buildImageButton(
