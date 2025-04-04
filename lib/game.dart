@@ -65,7 +65,6 @@ class ApeEscapeGame extends FlameGame
   // Camera window settings
   static const double cameraWindowMarginRatio = 0.4;
 
-
   // Audio manager
   final _audioManager = AudioManager();
 
@@ -88,7 +87,6 @@ class ApeEscapeGame extends FlameGame
   // Target camera position - initialized to null to indicate it hasn't been set yet
   double? _targetCameraX;
 
-
   ApeEscapeGame({this.socket, this.matchId, this.session}) {
     gameLayer = PositionComponent();
     add(gameLayer);
@@ -96,6 +94,9 @@ class ApeEscapeGame extends FlameGame
 
   @override
   Future<void> onLoad() async {
+    // Preload images
+    await images.load('jump_button.png');
+
     // Get actual screen dimensions
     gameWidth = size.x;
     gameHeight = size.y;
@@ -685,9 +686,9 @@ class ApeEscapeGame extends FlameGame
 
     // Jump button
     final jumpButton = HudButtonComponent(
-      button: CircleComponent(
-        radius: gameHeight * 0.12,
-        paint: Paint()..color = const Color(0xFF00FF00).withOpacity(0.5),
+      button: SpriteComponent(
+        sprite: Sprite(images.fromCache('jump_button.png')),
+        size: Vector2(gameHeight * 0.24, gameHeight * 0.24),
       ),
       position: Vector2(gameWidth * 0.85, gameHeight * 0.59),
       priority: 2,

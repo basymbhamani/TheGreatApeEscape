@@ -266,6 +266,9 @@ class LobbyGame extends ApeEscapeGame {
 
   @override
   Future<void> onLoad() async {
+    // Preload images
+    await images.load('jump_button.png');
+
     // Set game dimensions
     gameWidth = size.x;
     gameHeight = size.y;
@@ -316,9 +319,9 @@ class LobbyGame extends ApeEscapeGame {
 
     // Add jump button exactly like in game.dart
     final jumpButton = HudButtonComponent(
-      button: CircleComponent(
-        radius: gameHeight * 0.12,
-        paint: Paint()..color = const Color(0xFF00FF00).withOpacity(0.5),
+      button: SpriteComponent(
+        sprite: Sprite(images.fromCache('jump_button.png')),
+        size: Vector2(gameHeight * 0.24, gameHeight * 0.24),
       ),
       position: Vector2(gameWidth * 0.85, gameHeight * 0.59),
       priority: 2,
