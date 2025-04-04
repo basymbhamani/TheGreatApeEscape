@@ -790,7 +790,27 @@ class ApeEscapeGame extends FlameGame
     }
   }
 
-  // Update the onMatchData method to remove the platform state handling (opCode 3)
+  // Add a simplified platform state handler
+  void handlePlatformStateMessage(Map<String, dynamic> data) {
+    if (data.containsKey('platformId') && data.containsKey('state')) {
+      final platformId = data['platformId'];
+      final state = data['state'];
+
+      if (state == 'stop') {
+        // Find the platform with the matching ID
+        final platforms = gameLayer.children.whereType<BushPlatform>();
+        for (final platform in platforms) {
+          if (platform.platformId == platformId) {
+            // Stop the platform
+            platform.syncState('stop', data);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Update the onMatchData method to add back platform state handling for opCode 3
   void onMatchData(MatchData matchData) {
     if (matchId != null && matchData.matchId != matchId) {
       return; // Ignore data from other matches
@@ -920,6 +940,9 @@ class ApeEscapeGame extends FlameGame
               );
             });
           }
+        } else if (type == 'platform_state') {
+          // Handle platform state synchronization
+          handlePlatformStateMessage(data);
         }
       } else if (matchData.opCode == 4) {
         // Handle player join messages

@@ -1,20 +1,23 @@
-import 'package:flame/components.dart';
+import 'dart:convert';
 import 'package:flame/collisions.dart';
+import 'package:flame/components.dart';
 import 'game.dart';
 import 'monkey.dart';
+import 'dart:math' as math;
 
-class BushPlatform extends PositionComponent with CollisionCallbacks {
+class BushPlatform extends PositionComponent
+    with CollisionCallbacks, HasGameRef<ApeEscapeGame> {
   static const double bushSize = 56.0;
   final Vector2 startPosition;
   final int numBlocks;
   final double height;
-  final bool moveRight;
 
   // Movement constants
-  final double moveDistance;
-  final double moveSpeed;
-  late final Vector2 _originalPosition;
-  double _direction = 1;
+  final double moveDistance = 150.0; // Increased height for more movement
+  final double moveSpeed = 50.0;
+  late final double originalY;
+  late final double targetY;
+  bool movingUp = false;
 
   // Monkey tracking
   final Set<Monkey> _monkeysOnPlatform = {};
@@ -23,6 +26,9 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
   static const double _hitboxHeight = 0.2;
   static const double _hitboxYOffset = 0.15;
 
+  // State flags
+  bool _isStopped = false;
+
   // For network identification
   final String platformId;
 
@@ -30,14 +36,10 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
     required this.startPosition,
     this.numBlocks = 5,
     this.height = 1,
-    this.moveRight = false,
-    this.moveDistance = 80.0,
-    this.moveSpeed = 50.0,
     String? id,
   }) : platformId =
            id ?? 'bush_platform_${startPosition.x}_${startPosition.y}' {
     position = startPosition.clone();
-    _originalPosition = startPosition.clone();
     size = Vector2(bushSize * numBlocks, bushSize * height);
   }
 
@@ -60,7 +62,7 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
     for (int i = 1; i < numBlocks - 1; i++) {
       final bushCenter = SpriteComponent(
         sprite: bushCenterSprite,
-        position: Vector2(bushSize * (i - 1), 0),
+        position: Vector2(bushSize * i, 0),
         size: Vector2.all(bushSize),
       );
       add(bushCenter);
@@ -69,7 +71,7 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
     // Add right bush
     final bushRight = SpriteComponent(
       sprite: bushRightSprite,
-      position: Vector2(bushSize * (numBlocks - 2), 0),
+      position: Vector2(bushSize * (numBlocks - 1), 0),
       size: Vector2.all(bushSize),
     );
     add(bushRight);
@@ -78,31 +80,55 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
     add(
       RectangleHitbox(
         size: Vector2(bushSize * numBlocks, bushSize * _hitboxHeight),
-        position: Vector2(
-          -bushSize + (bushSize * 0.05),
-          bushSize * _hitboxYOffset,
-        ),
+        position: Vector2(0, bushSize * _hitboxYOffset),
         collisionType: CollisionType.passive,
       )..debugMode = ApeEscapeGame.showHitboxes,
     );
+
+    // Initialize movement parameters
+    originalY = position.y;
+    targetY = originalY - moveDistance;
+
+    // Make the platform start in a random position in its movement cycle
+    final random = math.Random();
+    final randomOffset = random.nextDouble() * moveDistance;
+    if (random.nextBool()) {
+      position.y = originalY - randomOffset;
+      movingUp = false;
+    } else {
+      position.y = originalY - moveDistance + randomOffset;
+      movingUp = true;
+    }
   }
 
-  void _updateMonkeyPositions() {
-    for (final monkey in _monkeysOnPlatform) {
-      if (!monkey.isDead && monkey.isGrounded) {
-        if (moveRight) {
-          // For horizontal movement, match the platform's velocity
-          // This makes the monkey move with the platform while still allowing player control
-          monkey.position.x +=
-              moveSpeed *
-              _direction *
-              0.016; // Approximate delta time of one frame
-        } else {
-          // For vertical movement, keep the monkey firmly attached to the platform
-          monkey.position.y =
-              position.y - monkey.size.y / 2 + bushSize * _hitboxYOffset;
-        }
+  void stopMoving() {
+    if (!_isStopped) {
+      _isStopped = true;
+      // Broadcast the stop state to all players
+      _broadcastState('stop');
+    }
+  }
+
+  void _broadcastState(String state) {
+    try {
+      final socket = gameRef.socket;
+      if (socket != null && gameRef.matchId != null) {
+        final data = {
+          'type': 'platform_state',
+          'platformId': platformId,
+          'state': state,
+          'playerId': gameRef.session?.userId,
+        };
+
+        final jsonData = jsonEncode(data);
+        socket.sendMatchData(
+          matchId: gameRef.matchId!,
+          opCode: 3, // opCode for platform state updates
+          data: List<int>.from(utf8.encode(jsonData)),
+        );
       }
+    } catch (e) {
+      print('Error broadcasting platform state: $e');
     }
   }
 
@@ -110,33 +136,44 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
   void update(double dt) {
     super.update(dt);
 
-    // Remove dead monkeys from tracking
-    _monkeysOnPlatform.removeWhere((monkey) => monkey.isDead);
-
-    if (moveRight) {
-      // Move horizontally
-      position.x += moveSpeed * _direction * dt;
-
-      // Check if we need to change direction
-      if (_direction > 0 && position.x >= _originalPosition.x + moveDistance) {
-        _direction = -1;
-      } else if (_direction < 0 && position.x <= _originalPosition.x) {
-        _direction = 1;
-      }
-    } else {
-      // Move vertically
-      position.y += moveSpeed * _direction * dt;
+    // Only move if not stopped
+    if (!_isStopped) {
+      // Calculate new position
+      final double direction = movingUp ? -1 : 1;
+      position.y += direction * moveSpeed * dt;
 
       // Check if we need to change direction
-      if (_direction > 0 && position.y >= _originalPosition.y + moveDistance) {
-        _direction = -1;
-      } else if (_direction < 0 && position.y <= _originalPosition.y) {
-        _direction = 1;
+      if (movingUp && position.y <= targetY) {
+        movingUp = false;
+      } else if (!movingUp && position.y >= originalY) {
+        movingUp = true;
       }
     }
 
-    // Update positions of all monkeys on the platform
+    // Update the positions of monkeys on the platform
     _updateMonkeyPositions();
+  }
+
+  void _updateMonkeyPositions() {
+    for (final monkey in _monkeysOnPlatform) {
+      if (!monkey.isDead && monkey.isGrounded) {
+        // Keep monkey attached to the platform
+        monkey.position.y =
+            position.y - monkey.size.y / 2 + bushSize * _hitboxYOffset;
+      } else if (monkey.velocity.y > 0) {
+        // Monkey is falling - check if close to the platform
+        final monkeyBottom = monkey.position.y + monkey.size.y / 2;
+        final platformTop = position.y + bushSize * _hitboxYOffset;
+
+        // If monkey is close to landing on the platform, re-attach it
+        if ((monkeyBottom - platformTop).abs() < 15) {
+          monkey.position.y =
+              position.y - monkey.size.y / 2 + bushSize * _hitboxYOffset;
+          monkey.velocity.y = 0;
+          monkey.isGrounded = true;
+        }
+      }
+    }
   }
 
   @override
@@ -145,33 +182,23 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
     PositionComponent other,
   ) {
     if (other is Monkey) {
-      // Only add monkey if not already tracked
-      if (!_monkeysOnPlatform.contains(other)) {
-        // Check if the monkey is landing on top (not hitting from below or sides)
-        final monkeyBottom = other.position.y + other.size.y / 2;
-        final platformTop = position.y + bushSize * _hitboxYOffset;
+      // Check if monkey is landing on top of the platform
+      final monkeyBottom = other.position.y + other.size.y / 2;
+      final platformTop = position.y + bushSize * _hitboxYOffset;
 
-        if ((monkeyBottom - platformTop).abs() < 10 && other.velocity.y >= 0) {
-          other.isGrounded = true;
-          other.velocity.y = 0;
+      if ((monkeyBottom - platformTop).abs() < 10 && other.velocity.y >= 0) {
+        other.isGrounded = true;
+        other.velocity.y = 0;
 
-          // Position monkey on top of platform
-          other.position.y =
-              position.y - other.size.y / 2 + bushSize * _hitboxYOffset;
+        // Position monkey on top of platform
+        other.position.y =
+            position.y - other.size.y / 2 + bushSize * _hitboxYOffset;
 
-          // Update animation based on movement
-          if (other.joystick != null) {
-            other.animation =
-                (other.joystick!.delta.x.abs() > 0)
-                    ? other.runAnimation
-                    : other.idleAnimation;
-          } else {
-            other.animation = other.idleAnimation;
-          }
+        // Add to tracked monkeys
+        _monkeysOnPlatform.add(other);
 
-          // Add to tracked monkeys
-          _monkeysOnPlatform.add(other);
-        }
+        // Stop platform movement when any player lands on it
+        stopMoving();
       }
     }
     super.onCollisionStart(intersectionPoints, other);
@@ -180,32 +207,25 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
   @override
   void onCollisionEnd(PositionComponent other) {
     if (other is Monkey) {
-      if (_monkeysOnPlatform.contains(other)) {
-        // Check if monkey is truly off the platform horizontally
-        final platformLeft = position.x - size.x / 2;
-        final platformRight = position.x + size.x / 2;
+      final horizOffPlatform =
+          other.position.x + other.size.x / 2 < position.x ||
+          other.position.x - other.size.x / 2 > position.x + size.x;
 
-        if (other.position.x < platformLeft ||
-            other.position.x > platformRight) {
-          other.isGrounded = false;
-          _monkeysOnPlatform.remove(other);
-        }
-        // If monkey is jumping, let physics handle it but keep it in our tracking set
-        else if (other.velocity.y < 0) {
-          other.isGrounded = false;
-        }
+      // If monkey is jumping upward, keep tracking it
+      final isJumpingUp = other.velocity.y < -5;
+
+      if (horizOffPlatform ||
+          (!isJumpingUp && other.position.y > position.y + 20)) {
+        _monkeysOnPlatform.remove(other);
+        other.isGrounded = false;
       }
     }
     super.onCollisionEnd(other);
   }
 
-  // Method for network synchronization (to keep compatible with game.dart)
-  void syncState(String state, Map<String, dynamic> data) {
-    // This class doesn't need state syncing as movement is deterministic
-    // If position data is included, we could sync it
-    if (data.containsKey('x') && data.containsKey('y')) {
-      position.x = data['x'];
-      position.y = data['y'];
+  void syncState(String state, Map<String, dynamic>? data) {
+    if (state == 'stop') {
+      _isStopped = true;
     }
   }
 }
