@@ -2,7 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'game.dart';
 
-class RectangularMovingPlatform extends PositionComponent with CollisionCallbacks {
+class RectangularMovingPlatform extends PositionComponent
+    with CollisionCallbacks {
   static const double platformSize = 56.0;
   final Vector2 startPosition;
   final double width;
@@ -31,7 +32,7 @@ class RectangularMovingPlatform extends PositionComponent with CollisionCallback
   @override
   Future<void> onLoad() async {
     final sprite = await Sprite.load('Platforms/moving_platform_single.png');
-    
+
     // Add multiple platform sprites side by side
     for (int i = 0; i < numBlocks; i++) {
       final platform = SpriteComponent(
@@ -43,11 +44,13 @@ class RectangularMovingPlatform extends PositionComponent with CollisionCallback
     }
 
     // Add collision hitbox that spans all blocks
-    add(RectangleHitbox(
-      size: Vector2(platformSize * numBlocks, platformSize * 0.1),
-      position: Vector2(0, 0),
-      collisionType: CollisionType.passive,
-    )..debugMode = ApeEscapeGame.showHitboxes);
+    add(
+      RectangleHitbox(
+        size: Vector2(platformSize * numBlocks, platformSize * 0.1),
+        position: Vector2(0, 0),
+        collisionType: CollisionType.passive,
+      )..debugMode = ApeEscapeGame.showHitboxes,
+    );
 
     // Set initial target
     _updateTarget();
@@ -86,4 +89,4 @@ class RectangularMovingPlatform extends PositionComponent with CollisionCallback
       position += toTarget * moveSpeed * dt;
     }
   }
-} 
+}

@@ -5,6 +5,7 @@ import 'package:flame/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nakama/nakama.dart';
+import 'dart:ui' show lerpDouble;
 import 'monkey.dart';
 import 'platform.dart';
 import 'vine.dart';
@@ -64,6 +65,7 @@ class ApeEscapeGame extends FlameGame
   // Camera window settings
   static const double cameraWindowMarginRatio = 0.4;
 
+
   // Audio manager
   final _audioManager = AudioManager();
 
@@ -79,6 +81,13 @@ class ApeEscapeGame extends FlameGame
     _invertControls = inverted;
     // TODO: Invert Controls
   }
+
+  // Camera smoothing factor (lower = smoother but slower)
+  static const double cameraSmoothingFactor = 0.05;
+
+  // Target camera position - initialized to null to indicate it hasn't been set yet
+  double? _targetCameraX;
+
 
   ApeEscapeGame({this.socket, this.matchId, this.session}) {
     gameLayer = PositionComponent();
@@ -248,30 +257,49 @@ class ApeEscapeGame extends FlameGame
     final cloudY = gameHeight - Platform.platformSize * 3;
     final cloudSpacing = Platform.platformSize * 3.5;
 
-    for (int i = 0; i < 4; i++) {
+    // Replace horizontal cloud row with a staircase pattern
+    // Creating 3 clouds that ascend toward the blocks (removed last 2 clouds)
+    for (int i = 0; i < 3; i++) {
+      final cloudX =
+          cloudStartX + (cloudSpacing * i * 0.6); // Tighten horizontal spacing
+      final stepHeight =
+          i *
+          Platform.platformSize *
+          0.7; // Each cloud is higher than the previous one
+
       final cloud = Cloud(
         worldWidth: worldWidth,
         height: gameHeight,
-        startPosition: Vector2(cloudStartX + (cloudSpacing * i), cloudY),
-        numBlocks: 3,
+        startPosition: Vector2(
+          cloudX,
+          cloudY - stepHeight,
+        ), // Progressively higher Y position
+        numBlocks: i < 2 ? 3 : 2, // Slightly smaller clouds as we go up
       );
       gameLayer.add(cloud);
     }
 
-    // Add three blocks above the clouds
+    // Calculate position based on the third cloud
+    final thirdCloudX = cloudStartX + (cloudSpacing * 2 * 0.6);
+    final thirdCloudY = cloudY - (2 * Platform.platformSize * 0.7);
+
+    // Define block height
     final blockHeight = gameHeight * 0.25;
-    final blocksY = cloudY - blockHeight - (Platform.platformSize * 1);
-    final blockStartX = cloudStartX + (cloudSpacing * 2);
+
+    // Position blocks one block to the right and one block higher than third cloud
+    // Also add 100 pixels to the right and make them lower
+    final blocksX = thirdCloudX + Platform.platformSize + 100;
+    final blocksY = thirdCloudY - Platform.platformSize - blockHeight + 150;
 
     // Add single block group
-    final blocks = GameBlock(startPosition: Vector2(blockStartX, blocksY));
+    final blocks = GameBlock(startPosition: Vector2(blocksX, blocksY));
     gameLayer.add(blocks);
 
     // Add bush near the top of the screen
     final bush = Bush(
       startPosition: Vector2(
-        blockStartX + (Platform.platformSize * 7),
-        gameHeight * 0.3 - (Platform.platformSize * 1),
+        blocksX + (Platform.platformSize * 5) + 100,
+        gameHeight * 0.3 - (Platform.platformSize * 3),
       ),
       pieceCount: 13,
     );
@@ -283,7 +311,7 @@ class ApeEscapeGame extends FlameGame
       height: gameHeight,
       numBlocks: 5,
       startPosition: Vector2(
-        blockStartX + (Platform.platformSize * 9),
+        blocksX + (Platform.platformSize * 9),
         gameHeight - Platform.platformSize * 2,
       ),
       heightInBlocks: 2,
@@ -293,7 +321,7 @@ class ApeEscapeGame extends FlameGame
     // Add heart on top of the platform
     final heart = Heart(
       position: Vector2(
-        blockStartX + (Platform.platformSize * 11),
+        blocksX + (Platform.platformSize * 11),
         gameHeight - Platform.platformSize * 3,
       ),
     );
@@ -302,7 +330,7 @@ class ApeEscapeGame extends FlameGame
     // Add bush platform after the heart
     final bushPlatform = BushPlatform(
       startPosition: Vector2(
-        blockStartX + (Platform.platformSize * 16),
+        blocksX + (Platform.platformSize * 16),
         gameHeight - Platform.platformSize * 2,
       ),
       numBlocks: 5,
@@ -313,7 +341,7 @@ class ApeEscapeGame extends FlameGame
     // Add first tree block
     final treeBlock = TreeBlock(
       position: Vector2(
-        blockStartX + (Platform.platformSize * 21),
+        blocksX + (Platform.platformSize * 21),
         gameHeight - Platform.platformSize * 4,
       ),
     );
@@ -322,7 +350,7 @@ class ApeEscapeGame extends FlameGame
     // Add decorative tree
     final tree = Tree(
       position: Vector2(
-        blockStartX + (Platform.platformSize * 25),
+        blocksX + (Platform.platformSize * 25),
         gameHeight - Platform.platformSize * 4,
       ),
     );
@@ -331,7 +359,7 @@ class ApeEscapeGame extends FlameGame
     // Add second tree block
     final treeBlock2 = TreeBlock(
       position: Vector2(
-        blockStartX + (Platform.platformSize * 37),
+        blocksX + (Platform.platformSize * 37),
         gameHeight - Platform.platformSize * 2.5,
       ),
     );
@@ -340,7 +368,7 @@ class ApeEscapeGame extends FlameGame
     // Add right-moving bush platform
     final movingRightBushPlatform = BushPlatform(
       startPosition: Vector2(
-        blockStartX + (Platform.platformSize * 45),
+        blocksX + (Platform.platformSize * 45),
         gameHeight - Platform.platformSize * 3.5,
       ),
       numBlocks: 3,
@@ -354,7 +382,7 @@ class ApeEscapeGame extends FlameGame
       height: gameHeight,
       numBlocks: 6,
       startPosition: Vector2(
-        blockStartX + (Platform.platformSize * 55),
+        blocksX + (Platform.platformSize * 55),
         gameHeight - Platform.platformSize * 3.5,
       ),
       heightInBlocks: 2,
@@ -364,7 +392,7 @@ class ApeEscapeGame extends FlameGame
     // Add rectangular moving platform
     final rectangularPlatform = RectangularMovingPlatform(
       startPosition: Vector2(
-        blockStartX + (Platform.platformSize * 65),
+        blocksX + (Platform.platformSize * 65),
         gameHeight - Platform.platformSize * 4,
       ),
       width: Platform.platformSize * 4,
@@ -379,7 +407,7 @@ class ApeEscapeGame extends FlameGame
       worldWidth: worldWidth,
       height: gameHeight,
       startPosition: Vector2(
-        blockStartX + (Platform.platformSize * 67),
+        blocksX + (Platform.platformSize * 67),
         gameHeight - Platform.platformSize * 8,
       ),
     );
@@ -388,7 +416,7 @@ class ApeEscapeGame extends FlameGame
     // Create the bush immediately but don't start moving it yet
     final puzzleBush = Bush(
       startPosition: Vector2(
-        blockStartX + (Platform.platformSize * 75),
+        blocksX + (Platform.platformSize * 75),
         gameHeight * 0.3,
       ),
       pieceCount: 13,
@@ -398,7 +426,7 @@ class ApeEscapeGame extends FlameGame
     // Add vertically moving platform after the bush
     final verticalMovingPlatform = BushPlatform(
       startPosition: Vector2(
-        blockStartX + (Platform.platformSize * 82),
+        blocksX + (Platform.platformSize * 82),
         gameHeight - Platform.platformSize * 4,
       ),
       numBlocks: 5,
@@ -408,7 +436,7 @@ class ApeEscapeGame extends FlameGame
     gameLayer.add(verticalMovingPlatform);
 
     // Add final platform at the end of the level
-    final finalPlatformStartX = blockStartX + (Platform.platformSize * 90);
+    final finalPlatformStartX = blocksX + (Platform.platformSize * 90);
     final remainingDistance = worldWidth - finalPlatformStartX;
     final numBlocksNeeded = (remainingDistance / Platform.platformSize).ceil();
 
@@ -439,19 +467,19 @@ class ApeEscapeGame extends FlameGame
     final totalCoins = 4;
     final coinPositions = [
       Vector2(
-        blockStartX + (Platform.platformSize * 67),
+        blocksX + (Platform.platformSize * 67),
         gameHeight - Platform.platformSize * 6,
       ),
       Vector2(
-        blockStartX + (Platform.platformSize * 71),
+        blocksX + (Platform.platformSize * 71),
         gameHeight - Platform.platformSize * 4,
       ),
       Vector2(
-        blockStartX + (Platform.platformSize * 67),
+        blocksX + (Platform.platformSize * 67),
         gameHeight - Platform.platformSize * 2,
       ),
       Vector2(
-        blockStartX + (Platform.platformSize * 63),
+        blocksX + (Platform.platformSize * 63),
         gameHeight - Platform.platformSize * 4,
       ),
     ];
@@ -473,7 +501,7 @@ class ApeEscapeGame extends FlameGame
     // Add button on top of second block
     final button = Button(
       startPosition: Vector2(
-        blockStartX + Platform.platformSize,
+        blocksX + Platform.platformSize * 0.5 + 80,
         blocksY - Button.buttonSize,
       ),
       targetBush: bush,
@@ -684,13 +712,40 @@ class ApeEscapeGame extends FlameGame
     final windowRight =
         -gameLayer.position.x + gameWidth * (1 - cameraWindowMarginRatio);
 
+    // Initialize target camera position if not set
+    if (_targetCameraX == null) {
+      _targetCameraX = gameLayer.position.x;
+    }
+
     // Check if player is outside the camera window
     if (player.position.x < windowLeft) {
-      gameLayer.position.x =
+      // Set target position when player is outside left boundary
+      _targetCameraX =
           -(player.position.x - gameWidth * cameraWindowMarginRatio);
     } else if (player.position.x > windowRight) {
-      gameLayer.position.x =
+      // Set target position when player is outside right boundary
+      _targetCameraX =
           -(player.position.x - gameWidth * (1 - cameraWindowMarginRatio));
+    }
+
+    // Apply smooth camera movement using linear interpolation with safety checks
+    if (_targetCameraX != null &&
+        (_targetCameraX! - gameLayer.position.x).abs() > 0.01) {
+      try {
+        // Use a safer approach with explicit calculations instead of lerpDouble
+        double currentX = gameLayer.position.x;
+        double targetX = _targetCameraX!;
+        double newX = currentX + (targetX - currentX) * cameraSmoothingFactor;
+
+        // Assign the new position
+        gameLayer.position.x = newX;
+      } catch (e) {
+        // Fallback to direct assignment if interpolation fails
+        print('Camera interpolation error: $e');
+        if (_targetCameraX != null) {
+          gameLayer.position.x = _targetCameraX!;
+        }
+      }
     }
 
     // Clamp game layer position to world boundaries

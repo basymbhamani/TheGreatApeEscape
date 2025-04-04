@@ -30,27 +30,6 @@ class Tree extends PositionComponent with CollisionCallbacks {
 
     // Add top row of tree pieces
     // Left edge
-    add(SpriteComponent(
-      sprite: treeTopLeftSprite,
-      position: Vector2(blockSize * 2, -blockSize * 3.25),
-      size: Vector2.all(blockSize),
-    ));
-
-    // Middle pieces
-    for (int i = 0; i < 7; i++) {
-      add(SpriteComponent(
-        sprite: treeTopSprite,
-        position: Vector2(blockSize * (i + 3), -blockSize * 3.25),
-        size: Vector2.all(blockSize),
-      ));
-    }
-
-    // Right edge
-    add(SpriteComponent(
-      sprite: treeTopRightSprite,
-      position: Vector2(blockSize * 10, -blockSize * 3.25),
-      size: Vector2.all(blockSize),
-    ));
 
     // Add left block under top row
     add(SpriteComponent(
@@ -59,19 +38,7 @@ class Tree extends PositionComponent with CollisionCallbacks {
       size: Vector2.all(blockSize),
     ));
 
-    // Add tree top right next to highest left wall block
-    add(SpriteComponent(
-      sprite: treeTopRightSprite,
-      position: Vector2(blockSize * 3, 0),  // Moved down one block
-      size: Vector2.all(blockSize),
-    ));
-
-    // Add top left block
-    add(SpriteComponent(
-      sprite: treeTopLeftSprite,
-      position: Vector2(blockSize * 2, 0),  // Moved down one block
-      size: Vector2.all(blockSize),
-    ));
+    
 
     // Add platform hitbox for the two highest blocks
     add(RectangleHitbox(
