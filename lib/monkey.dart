@@ -43,9 +43,10 @@ class Monkey extends SpriteAnimationComponent
   static const double monkeyWidth = 126.0; // 84 * 1.5
   static const double monkeyHeight = 126.0; // 84 * 1.5
   static const double hitboxWidth = 75.6; // 50.4 * 1.5
-  static const double hitboxHeight = 37.8; // 25.2 * 1.5
+  static const double hitboxHeight = 9.45; // Reduced to 1/4 of original height
   static const double hitboxOffsetX = 25.2; // 16.8 * 1.5
-  static const double hitboxOffsetY = 88.2; // 58.8 * 1.5
+  static const double hitboxOffsetY =
+      116.55; // Adjusted to maintain bottom position
 
   // Movement constants
   static const double moveSpeed = 6.0; // Keeping current speed
