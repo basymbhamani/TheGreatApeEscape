@@ -36,38 +36,116 @@ class PreGameLobby extends StatefulWidget {
 }
 
 class _PreGameLobbyState extends State<PreGameLobby> {
-  int _playerCount = 1;
+  int _playerCount = 0;
+  final Map<String, String> _connectedPlayers = {};
   late final StreamSubscription<MatchPresenceEvent> _presenceSubscription;
+  late final StreamSubscription<MatchData> _matchDataSubscription;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    _setupMatchHandling();
+  }
+
+  void _setupMatchHandling() async {
+    // Listen for presence events (joins/leaves)
     _presenceSubscription = widget.socket.onMatchPresence.listen((event) {
       if (event.matchId == widget.code) {
-        // For joins, add to the count
-        for (final presence in event.joins) {
-          if (presence.userId != widget.session.userId) {
-            setState(() {
-              _playerCount++;
-            });
-          }
-        }
-        
-        // For leaves, subtract from the count
-        for (final presence in event.leaves) {
-          if (presence.userId != widget.session.userId && _playerCount > 1) {
-            setState(() {
-              _playerCount--;
-            });
+        _handlePresenceEvent(event);
+      }
+    });
+
+    // Listen for match data (player info updates)
+    _matchDataSubscription = widget.socket.onMatchData.listen((event) {
+      if (event.matchId == widget.code) {
+        _handleMatchData(event);
+      }
+    });
+
+    // Get initial match state
+    try {
+      // We're already joined to the match, so just request the current state
+      final match = await widget.socket.joinMatch(widget.code);
+      _updatePlayerList(match.presences);
+
+      // If we're the host, send our info to others
+      if (widget.isHost) {
+        _broadcastPlayerInfo();
+      }
+    } catch (e) {
+      print('Error getting initial match state: $e');
+    }
+  }
+
+  void _handlePresenceEvent(MatchPresenceEvent event) {
+    setState(() {
+      // Handle joins
+      for (final presence in event.joins) {
+        if (!_connectedPlayers.containsKey(presence.userId)) {
+          _connectedPlayers[presence.userId] = presence.username ?? 'Player';
+          // If we're the host, send current player list to the new player
+          if (widget.isHost) {
+            _broadcastPlayerInfo();
           }
         }
       }
+
+      // Handle leaves
+      for (final presence in event.leaves) {
+        _connectedPlayers.remove(presence.userId);
+      }
+
+      _playerCount = _connectedPlayers.length;
+    });
+  }
+
+  void _handleMatchData(MatchData event) {
+    if (event.opCode == 1) {
+      // Player info update
+      try {
+        final data = String.fromCharCodes(event.data ?? []);
+        final decoded = jsonDecode(data) as Map<String, dynamic>;
+
+        if (decoded['type'] == 'player_info') {
+          final playerList = decoded['players'] as Map<String, dynamic>;
+          setState(() {
+            _connectedPlayers.clear();
+            playerList.forEach((userId, username) {
+              _connectedPlayers[userId] = username as String;
+            });
+            _playerCount = _connectedPlayers.length;
+          });
+        }
+      } catch (e) {
+        print('Error processing player info update: $e');
+      }
+    }
+  }
+
+  void _broadcastPlayerInfo() {
+    final data = {'type': 'player_info', 'players': _connectedPlayers};
+
+    widget.socket.sendMatchData(
+      matchId: widget.code,
+      opCode: 1,
+      data: utf8.encode(jsonEncode(data)),
+    );
+  }
+
+  void _updatePlayerList(List<UserPresence> presences) {
+    setState(() {
+      for (final presence in presences) {
+        _connectedPlayers[presence.userId] = presence.username ?? 'Player';
+      }
+      _playerCount = _connectedPlayers.length;
     });
   }
 
   @override
   void dispose() {
     _presenceSubscription.cancel();
+    _matchDataSubscription.cancel();
     super.dispose();
   }
 
@@ -102,20 +180,45 @@ class _PreGameLobbyState extends State<PreGameLobby> {
                   Text(
                     widget.groupName,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text('Code: ${widget.displayCode ?? widget.code}', style: const TextStyle(fontSize: 16)),
+                  Text(
+                    'Code: ${widget.displayCode ?? widget.code}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
             Positioned(
               top: 20,
               left: 20,
-              child: Text(
-                'Players: $_playerCount',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Players: $_playerCount',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  ..._connectedPlayers.values
+                      .map(
+                        (username) => Text(
+                          username,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ],
               ),
             ),
             Positioned(
@@ -125,7 +228,6 @@ class _PreGameLobbyState extends State<PreGameLobby> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  // Replace the Text widget with an Image widget
                   Image.asset(
                     "assets/images/Title_Sprite.png",
                     height: 275,
@@ -164,7 +266,6 @@ class LobbyGame extends ApeEscapeGame {
 
   @override
   Future<void> onLoad() async {
-    
     // Set game dimensions
     gameWidth = size.x;
     gameHeight = size.y;
@@ -174,7 +275,7 @@ class LobbyGame extends ApeEscapeGame {
     );
     camera.viewfinder.anchor = Anchor.topLeft;
     camera.viewfinder.zoom = 1.0;
-    
+
     // Create ground platform - position higher on the screen
     final ground = Platform(
       worldWidth: 2856.0,
@@ -187,7 +288,7 @@ class LobbyGame extends ApeEscapeGame {
       heightInBlocks: 1,
     );
     add(ground);
-    
+
     // Initialize joystick exactly like in game.dart
     joystick = JoystickComponent(
       knob: CircleComponent(
@@ -202,7 +303,7 @@ class LobbyGame extends ApeEscapeGame {
       priority: 2,
     );
     add(joystick);
-    
+
     // Initialize player separately
     player = Monkey(
       joystick,
@@ -210,10 +311,7 @@ class LobbyGame extends ApeEscapeGame {
       gameHeight,
       playerId: session.userId,
       isRemotePlayer: false,
-    )..position = Vector2(
-      400,
-      gameHeight - Platform.platformSize * 2,
-    );
+    )..position = Vector2(400, gameHeight - Platform.platformSize * 2);
     add(player);
 
     // Add jump button exactly like in game.dart
@@ -230,7 +328,10 @@ class LobbyGame extends ApeEscapeGame {
 
     // Create door
     final door = Door(
-      Vector2((750) - (Platform.platformSize * 4), gameHeight - Platform.platformSize * 4.5),
+      Vector2(
+        (750) - (Platform.platformSize * 4),
+        gameHeight - Platform.platformSize * 4.5,
+      ),
       onPlayerEnter: () {
         Navigator.push(
           context,
@@ -250,7 +351,7 @@ class LobbyGame extends ApeEscapeGame {
     // Get our own user ID from the session
     _ownUserId = session.userId;
     print("Own user ID: $_ownUserId");
-    
+
     // Print the lobby code for the host
     if (isHost) {
       print("Lobby Code: $code");
@@ -316,20 +417,25 @@ class LobbyGame extends ApeEscapeGame {
         print('Invalid position data received from $playerId');
         return;
       }
-      
+
       // Store remote screen height and calculate offset using the inherited field
       if (remoteScreenHeight != null) {
         remoteScreenHeights[playerId] = remoteScreenHeight;
-        platformYOffset = (gameHeight - remoteScreenHeight) / 2; // Use inherited field
-        print('Calculated platformYOffset: $platformYOffset for player $playerId');
+        platformYOffset =
+            (gameHeight - remoteScreenHeight) / 2; // Use inherited field
+        print(
+          'Calculated platformYOffset: $platformYOffset for player $playerId',
+        );
       } else {
-         // Use existing offset or default to 0 if no height received yet for this player
-         print('No screenHeight received from $playerId, using existing inherited offset: $platformYOffset');
+        // Use existing offset or default to 0 if no height received yet for this player
+        print(
+          'No screenHeight received from $playerId, using existing inherited offset: $platformYOffset',
+        );
       }
-      
+
       // Apply offset to Y position using the inherited field
       // platformYOffset defaults to 0.0 in ApeEscapeGame, so it's safe to add directly
-      final adjustedY = y + platformYOffset; 
+      final adjustedY = y + platformYOffset;
 
       final isMoving = decoded['isMoving'] as bool? ?? false;
       final isJumping = decoded['isJumping'] as bool? ?? false;
@@ -338,7 +444,7 @@ class LobbyGame extends ApeEscapeGame {
       if (!remotePlayers.containsKey(playerId)) {
         _addRemotePlayer(playerId);
       }
-      
+
       // Update remote player with adjusted position
       remotePlayers[playerId]!.updateRemoteState(
         Vector2(x, adjustedY),
@@ -393,7 +499,9 @@ class LobbyGame extends ApeEscapeGame {
     final state = {
       'playerId': _ownUserId,
       'x': player.position.x,
-      'y': player.position.y - platformYOffset, // Send adjusted Y using inherited offset
+      'y':
+          player.position.y -
+          platformYOffset, // Send adjusted Y using inherited offset
       'isMoving': (joystick?.delta.x.abs() ?? 0) > 0,
       'isJumping': !player.isGrounded,
       'scaleX': player.scale.x,
