@@ -4,6 +4,7 @@ import 'package:flame/game.dart';
 import 'game.dart';
 import 'pre_game_lobby.dart';
 import 'dart:convert';
+import 'settings_menu.dart';
 
 class GameMainMenu extends StatefulWidget {
   final String matchId; // Match ID from Nakama or elsewhere
@@ -39,7 +40,9 @@ class _GameMainMenuState extends State<GameMainMenu> {
             Align(
               alignment: Alignment.topCenter,
               child: Padding(
-                padding: const EdgeInsets.only(top: 0.0), // Reduced top padding from 40.0
+                padding: const EdgeInsets.only(
+                  top: 0.0,
+                ), // Reduced top padding from 40.0
                 child: Text(
                   'MAIN MENU',
                   style: TextStyle(
@@ -79,16 +82,17 @@ class _GameMainMenuState extends State<GameMainMenu> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => GameWidget(
-                        game: ApeEscapeGame(
-                          socket: widget.socket,
-                          matchId: newMatch.matchId,
-                          session: widget.session,
-                        ),
-                        backgroundBuilder: (context) => Container(
-                          color: const Color(0xFF87CEEB),
-                        ),
-                      ),
+                      builder:
+                          (context) => GameWidget(
+                            game: ApeEscapeGame(
+                              socket: widget.socket,
+                              matchId: newMatch.matchId,
+                              session: widget.session,
+                            ),
+                            backgroundBuilder:
+                                (context) =>
+                                    Container(color: const Color(0xFF87CEEB)),
+                          ),
                     ),
                   );
                 },
@@ -106,12 +110,13 @@ class _GameMainMenuState extends State<GameMainMenu> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => PreGameLobby(
-                        code: widget.matchId,
-                        socket: widget.socket,
-                        isHost: true,
-                        session: widget.session,
-                      ),
+                      builder:
+                          (context) => PreGameLobby(
+                            code: widget.matchId,
+                            socket: widget.socket,
+                            isHost: true,
+                            session: widget.session,
+                          ),
                     ),
                   );
                 },
@@ -126,17 +131,22 @@ class _GameMainMenuState extends State<GameMainMenu> {
                 icon: Icons.settings,
                 label: 'Settings',
                 onTap: () {
+                  // Create a temporary game instance for settings
+                  final tempGame = ApeEscapeGame();
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const SettingsScreen(),
+                    PageRouteBuilder(
+                      opaque: false,
+                      pageBuilder:
+                          (context, animation, secondaryAnimation) =>
+                              SettingsMenu(game: tempGame),
                     ),
                   );
                 },
               ),
             ),
 
-            // Leaderboard button at bottom right
+            // Leaderboard button at bottom right (greyed out)
             Positioned(
               bottom: -50.0,
               right: 150.0,
@@ -144,13 +154,9 @@ class _GameMainMenuState extends State<GameMainMenu> {
                 icon: Icons.leaderboard,
                 label: 'Leaderboard',
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LeaderboardScreen(),
-                    ),
-                  );
+                  // Do nothing - leaderboard is disabled
                 },
+                isDisabled: true,
               ),
             ),
           ],
@@ -206,73 +212,86 @@ class _GameMainMenuState extends State<GameMainMenu> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    bool isDisabled = false,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: isDisabled ? null : onTap,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Image.asset('assets/images/jungle_sign.png', width: 250, height: 250), // Increased size from 150
+          ColorFiltered(
+            colorFilter: ColorFilter.matrix(
+              isDisabled
+                  ? [
+                    0.2126,
+                    0.7152,
+                    0.0722,
+                    0,
+                    0,
+                    0.2126,
+                    0.7152,
+                    0.0722,
+                    0,
+                    0,
+                    0.2126,
+                    0.7152,
+                    0.0722,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                  ]
+                  : [
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                  ],
+            ),
+            child: Image.asset(
+              'assets/images/jungle_sign.png',
+              width: 250,
+              height: 250,
+            ),
+          ),
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 30, color: Colors.white),
+              Icon(
+                icon,
+                size: 30,
+                color: isDisabled ? Colors.grey : Colors.white,
+              ),
               const SizedBox(height: 4),
               Text(
                 label,
-                style: const TextStyle(fontSize: 16, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isDisabled ? Colors.grey : Colors.white,
+                ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage("assets/images/main_background.png"),
-            fit: BoxFit.cover, // Ensures the image covers the whole screen
-          ),
-        ),
-        child: const Center(
-          child: Text(
-            'Settings',
-            style: TextStyle(fontSize: 24, color: Colors.white),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class LeaderboardScreen extends StatelessWidget {
-  const LeaderboardScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage("assets/images/main_background.png"),
-            fit: BoxFit.cover, // Ensures the image covers the whole screen
-          ),
-        ),
-        child: const Center(
-          child: Text(
-            'Leaderboard',
-            style: TextStyle(fontSize: 24, color: Colors.white),
-          ),
-        ),
       ),
     );
   }

@@ -104,7 +104,7 @@ class Monkey extends SpriteAnimationComponent
     position =
         checkpointPosition ??
         Vector2(
-          2500,
+          200,
           worldHeight - Platform.platformSize - (worldHeight * 0.25) - 300,
         );
     opacity = 1.0;
