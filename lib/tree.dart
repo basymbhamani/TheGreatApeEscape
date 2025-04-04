@@ -27,17 +27,7 @@ class Tree extends PositionComponent with CollisionCallbacks {
     final treeTopRightSprite = await Sprite.load('Tree/tree_top_right.png');
     final treeTopLeftSprite = await Sprite.load('Tree/tree_top_left.png');
     final treeTopSprite = await Sprite.load('Tree/tree_top.png');
-
-    // Add top row of tree pieces
-    // Left edge
-
-    // Add left block under top row
-    add(SpriteComponent(
-      sprite: treeLeftSprite,
-      position: Vector2(blockSize * 2, -blockSize * 2.25),  // One block below top row
-      size: Vector2.all(blockSize),
-    ));
-
+   
     
 
     // Add platform hitbox for the two highest blocks
