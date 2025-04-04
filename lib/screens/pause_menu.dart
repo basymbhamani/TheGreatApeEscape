@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'game.dart';
+import '../game.dart';
 import 'host_join_screen.dart';
 import 'settings_menu.dart';
 import 'package:nakama/nakama.dart';

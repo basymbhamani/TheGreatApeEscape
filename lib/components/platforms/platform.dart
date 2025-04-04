@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'game.dart';
+import '../../game.dart';
 
 class Platform extends PositionComponent with CollisionCallbacks {
   static const double platformSize = 56.0; // Size of one platform block (4x original 14px size)

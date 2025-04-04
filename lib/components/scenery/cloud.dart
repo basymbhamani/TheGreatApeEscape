@@ -1,8 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'platform.dart';
-import 'monkey.dart';
-import 'game.dart';
+import '../platforms/platform.dart';
+import '../../models/monkey.dart';
+import '../../game.dart';
 
 class Cloud extends Platform {
   static const double heightScale = 3.5; // Reduced from 4

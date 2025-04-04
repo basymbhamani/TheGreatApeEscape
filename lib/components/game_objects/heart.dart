@@ -1,8 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'game.dart';
-import 'monkey.dart';
-import 'platform.dart';
+import '../../game.dart';
+import '../../models/monkey.dart';
+import '../platforms/platform.dart';
 
 class Heart extends PositionComponent with CollisionCallbacks {
   static const double heartSize = 56.0; // Same size as platform blocks

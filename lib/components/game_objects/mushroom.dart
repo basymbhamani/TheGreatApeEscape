@@ -1,8 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'game.dart';
-import 'platform.dart';
-import 'monkey.dart';
+import '../../game.dart';
+import '../platforms/platform.dart';
+import '../../models/monkey.dart';
 
 class Mushroom extends Platform {
   static const double bounceVelocity = -475; // Reduced bounce force (from -900)

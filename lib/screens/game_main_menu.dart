@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nakama/nakama.dart'; // Add this for NakamaWebsocketClient
 import 'package:flame/game.dart';
-import 'game.dart';
+import '../game.dart';
 import 'pre_game_lobby.dart';
 import 'dart:convert';
 import 'settings_menu.dart';

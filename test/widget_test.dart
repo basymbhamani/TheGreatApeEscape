@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:the_great_ape_escape/main.dart';
-import 'package:the_great_ape_escape/host_join_screen.dart';
+import 'package:the_great_ape_escape/screens/host_join_screen.dart';
 import 'package:nakama/nakama.dart';
 
 void main() {

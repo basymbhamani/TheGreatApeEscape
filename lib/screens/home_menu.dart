@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:nakama/nakama.dart';
 import 'host_join_screen.dart';
 import 'settings_menu.dart';
-import 'game.dart';
+import '../game.dart';
 
 class HomeMenu extends StatefulWidget {
   const HomeMenu({super.key});

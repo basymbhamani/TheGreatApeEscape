@@ -1,7 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'game.dart';
-import 'monkey.dart';
+import '../../game.dart';
+import '../../models/monkey.dart';
 import 'spikes.dart';
 
 class Tree extends PositionComponent with CollisionCallbacks {

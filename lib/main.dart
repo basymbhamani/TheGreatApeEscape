@@ -4,10 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:flame/game.dart';
 import 'package:nakama/nakama.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'host_join_screen.dart';
+import 'screens/host_join_screen.dart';
 import 'game.dart';
 import 'audio_manager.dart';
-import 'home_menu.dart';
+import 'screens/home_menu.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized

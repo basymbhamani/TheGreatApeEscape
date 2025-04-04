@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'game.dart';
+import '../../game.dart';
 
 class RectangularMovingPlatform extends PositionComponent
     with CollisionCallbacks {

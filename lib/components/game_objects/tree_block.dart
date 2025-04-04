@@ -1,7 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'game.dart';
-import 'monkey.dart';
+import '../../game.dart';
+import '../../models/monkey.dart';
 
 class TreeBlock extends PositionComponent with CollisionCallbacks {
   static const double blockSize = 56.0; // Base block size

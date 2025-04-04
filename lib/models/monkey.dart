@@ -2,18 +2,18 @@ import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/foundation.dart';
-import 'platform.dart';
-import 'vine.dart';
-import 'game.dart';
-import 'moving_platform.dart';
-import 'mushroom.dart';
-import 'bush.dart';
-import 'heart.dart';
-import 'spikes.dart';
-import 'coin.dart';
-import 'rectangular_moving_platform.dart';
-import 'door.dart';
-import 'cloud.dart';
+import '../components/platforms/platform.dart';
+import '../components/game_objects/vine.dart';
+import '../game.dart';
+import '../components/platforms/moving_platform.dart';
+import '../components/game_objects/mushroom.dart';
+import '../components/scenery/bush.dart';
+import '../components/game_objects/heart.dart';
+import '../components/game_objects/spikes.dart';
+import '../components/game_objects/coin.dart';
+import '../components/platforms/rectangular_moving_platform.dart';
+import '../components/game_objects/door.dart';
+import '../components/scenery/cloud.dart';
 
 class Monkey extends SpriteAnimationComponent
     with HasGameRef, CollisionCallbacks, KeyboardHandler {

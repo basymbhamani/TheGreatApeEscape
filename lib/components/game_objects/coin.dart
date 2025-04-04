@@ -2,8 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/sprite.dart';
 import 'package:flutter/foundation.dart';
-import 'game.dart';
-import 'monkey.dart';
+import '../../game.dart';
+import '../../models/monkey.dart';
 
 class Coin extends SpriteComponent with CollisionCallbacks {
   static const double coinSize = 28.0; // Half the size of a platform block

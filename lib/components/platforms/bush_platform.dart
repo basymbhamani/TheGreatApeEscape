@@ -1,9 +1,9 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'game.dart';
+import '../../game.dart';
 import 'platform.dart';
-import 'bush.dart';
-import 'monkey.dart';
+import '../scenery/bush.dart';
+import '../../models/monkey.dart';
 
 class BushPlatform extends PositionComponent with CollisionCallbacks {
   static const double bushSize = 56.0; // Same size as platform blocks

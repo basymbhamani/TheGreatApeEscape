@@ -1,8 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/game.dart';
-import 'game.dart';
-import 'monkey.dart';
+import '../../game.dart';
+import '../../models/monkey.dart';
 import 'package:flame/flame.dart';
 
 class Door extends SpriteComponent with CollisionCallbacks {

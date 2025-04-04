@@ -1,8 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'platform.dart';
-import 'monkey.dart';
-import 'game.dart';
+import '../platforms/platform.dart';
+import '../../models/monkey.dart';
+import '../../game.dart';
 
 class GameBlock extends PositionComponent with CollisionCallbacks {
   static const double blockSize = 56.0; // Same size as platform blocks

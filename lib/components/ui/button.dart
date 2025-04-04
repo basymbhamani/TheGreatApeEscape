@@ -1,8 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'monkey.dart';
-import 'game.dart';
-import 'bush.dart';
+import '../../models/monkey.dart';
+import '../../game.dart';
+import '../scenery/bush.dart';
 
 class Button extends PositionComponent with CollisionCallbacks {
   static const double buttonSize = 56.0; // Same size as platform blocks

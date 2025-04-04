@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'game.dart';
+import '../../game.dart';
 
 class Vine extends PositionComponent with CollisionCallbacks {
   final int pieceCount;

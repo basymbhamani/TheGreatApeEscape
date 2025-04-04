@@ -3,7 +3,7 @@ import 'package:nakama/nakama.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'pre_game_lobby.dart'; // Import the PreGameLobby screen
 import 'package:flame/game.dart';
-import 'game.dart';
+import '../game.dart';
 
 class HostJoinScreen extends StatefulWidget {
   final NakamaBaseClient nakamaClient;
