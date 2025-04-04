@@ -6,6 +6,8 @@ import 'package:nakama/nakama.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'host_join_screen.dart';
 import 'game.dart';
+import 'audio_manager.dart';
+import 'home_menu.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -32,14 +34,25 @@ void main() async {
 
   // Authenticate with a device ID (unique per device)
   final session = await nakamaClient.authenticateDevice(
-    deviceId: 'unique-device-id${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(1000)}',
+    deviceId:
+        'unique-device-id${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(1000)}',
   );
 
-  // Run the app
-  runApp(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: HostJoinScreen(nakamaClient: nakamaClient, session: session), // Start with the HostJoinScreen
-    ),
-  );
+  // Initialize background music
+  await AudioManager().initializeMusic();
+
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'The Great Ape Escape',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const HomeMenu(),
+    );
+  }
 }

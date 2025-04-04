@@ -29,6 +29,8 @@ import 'pause_menu.dart';
 import 'pause_button.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'host_join_screen.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'audio_manager.dart';
 
 class ApeEscapeGame extends FlameGame
     with HasCollisionDetection, KeyboardEvents {
@@ -45,6 +47,8 @@ class ApeEscapeGame extends FlameGame
   static const updateRate = 1.0 / 60.0; // 30 updates per second
   double _timeSinceLastUpdate = 0.0;
   bool _isPaused = false;
+  double _soundVolume = 0.5;
+  bool _invertControls = false;
 
   // Platform height offset for different screen sizes
   double platformYOffset = 0.0;
@@ -61,11 +65,29 @@ class ApeEscapeGame extends FlameGame
   // Camera window settings
   static const double cameraWindowMarginRatio = 0.4;
 
+
+  // Audio manager
+  final _audioManager = AudioManager();
+
+  double get soundVolume => _soundVolume;
+  bool get invertControls => _invertControls;
+
+  void setSoundVolume(double volume) {
+    _soundVolume = volume;
+    _audioManager.setVolume(volume);
+  }
+
+  void setInvertControls(bool inverted) {
+    _invertControls = inverted;
+    // TODO: Invert Controls
+  }
+
   // Camera smoothing factor (lower = smoother but slower)
   static const double cameraSmoothingFactor = 0.05;
 
   // Target camera position - initialized to null to indicate it hasn't been set yet
   double? _targetCameraX;
+
 
   ApeEscapeGame({this.socket, this.matchId, this.session}) {
     gameLayer = PositionComponent();
@@ -768,9 +790,11 @@ class ApeEscapeGame extends FlameGame
     switch (state) {
       case AppLifecycleState.paused:
         timer.pause();
+        _audioManager.pauseMusic();
         break;
       case AppLifecycleState.resumed:
         timer.start();
+        _audioManager.resumeMusic();
         break;
       default:
         break;
@@ -912,5 +936,10 @@ class ApeEscapeGame extends FlameGame
         data: List<int>.from(utf8.encode(jsonEncode(data))),
       );
     }
+  }
+
+  @override
+  Future<void> onRemove() async {
+    super.onRemove();
   }
 }
