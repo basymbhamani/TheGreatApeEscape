@@ -31,6 +31,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'host_join_screen.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'audio_manager.dart';
+import 'celebration_screen.dart';
 
 class ApeEscapeGame extends FlameGame
     with HasCollisionDetection, KeyboardEvents {
@@ -448,7 +449,21 @@ class ApeEscapeGame extends FlameGame
         worldWidth - Platform.platformSize * 4,
         gameHeight - Platform.platformSize * 5.5,
       ),
-      onPlayerEnter: () {},
+      onPlayerEnter: () {
+        // Get the build context
+        final BuildContext? ctx = buildContext;
+        if (ctx != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Navigate to celebration screen first
+            Navigator.push(
+              ctx,
+              MaterialPageRoute(
+                builder: (context) => CelebrationScreen(session: session!),
+              ),
+            );
+          });
+        }
+      },
     );
     gameLayer.add(door);
 

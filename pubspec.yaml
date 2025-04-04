@@ -83,6 +83,7 @@ flutter:
     - assets/images/Vine/
     - assets/images/sprites/
     - assets/images/Title_Sprite.png
+    - assets/images/cele/
     - assets/.env
 
   # To add assets to your application, add an assets section, like this:

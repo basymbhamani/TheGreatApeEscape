@@ -9,10 +9,7 @@ class Door extends SpriteComponent with CollisionCallbacks {
   final Function() onPlayerEnter;
 
   Door(Vector2 position, {required this.onPlayerEnter})
-      : super(
-          position: position,
-          size: Vector2(220, 260),
-        );
+    : super(position: position, size: Vector2(220, 260));
 
   @override
   Future<void> onLoad() async {
@@ -33,15 +30,16 @@ class Door extends SpriteComponent with CollisionCallbacks {
     );
 
     add(
-      RectangleHitbox(
-        size: hitboxSize,
-        position: hitboxOffset,
-      )..collisionType = CollisionType.passive,
+      RectangleHitbox(size: hitboxSize, position: hitboxOffset)
+        ..collisionType = CollisionType.passive,
     );
   }
 
   @override
-  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+  void onCollisionStart(
+    Set<Vector2> intersectionPoints,
+    PositionComponent other,
+  ) {
     super.onCollisionStart(intersectionPoints, other);
 
     if (other is Monkey) {
