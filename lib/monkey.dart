@@ -21,7 +21,7 @@ class Monkey extends SpriteAnimationComponent
   final double worldWidth;
   final double gameHeight;
   Vector2 velocity = Vector2.zero();
-  static const double gravity = 525.0;
+  static const double gravity = 100.0;
   bool _isGrounded = false;
   bool _isDead = false;
   bool _isBlinking = false;

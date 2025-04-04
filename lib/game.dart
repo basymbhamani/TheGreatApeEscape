@@ -31,6 +31,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'host_join_screen.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'audio_manager.dart';
+import 'celebration_screen.dart';
 
 class ApeEscapeGame extends FlameGame
     with HasCollisionDetection, KeyboardEvents {
@@ -65,7 +66,6 @@ class ApeEscapeGame extends FlameGame
   // Camera window settings
   static const double cameraWindowMarginRatio = 0.4;
 
-
   // Audio manager
   final _audioManager = AudioManager();
 
@@ -87,7 +87,6 @@ class ApeEscapeGame extends FlameGame
 
   // Target camera position - initialized to null to indicate it hasn't been set yet
   double? _targetCameraX;
-
 
   ApeEscapeGame({this.socket, this.matchId, this.session}) {
     gameLayer = PositionComponent();
@@ -458,7 +457,21 @@ class ApeEscapeGame extends FlameGame
         worldWidth - Platform.platformSize * 4,
         gameHeight - Platform.platformSize * 14,
       ),
-      onPlayerEnter: () {},
+      onPlayerEnter: () {
+        // Get the build context
+        final BuildContext? ctx = buildContext;
+        if (ctx != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Navigate to celebration screen first
+            Navigator.push(
+              ctx,
+              MaterialPageRoute(
+                builder: (context) => CelebrationScreen(session: session!),
+              ),
+            );
+          });
+        }
+      },
     );
     gameLayer.add(door);
 
