@@ -125,16 +125,11 @@ class _PreGameLobbyState extends State<PreGameLobby> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  Text(
-                    'APE ESCAPE',
-                    style: TextStyle(fontSize: 87, fontWeight: FontWeight.bold),
-                  ),
-                  Transform.translate(
-                    offset: Offset(0, -20),
-                    child: Text(
-                      'Walk in to start',
-                      style: TextStyle(fontSize: 44),
-                    ),
+                  // Replace the Text widget with an Image widget
+                  Image.asset(
+                    "assets/images/Title_Sprite.png",
+                    height: 275,
+                    fit: BoxFit.contain,
                   ),
                 ],
               ),
