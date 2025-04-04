@@ -26,7 +26,7 @@ class Door extends SpriteComponent with CollisionCallbacks {
       print('Failed to load door image!');
     }
 
-    final hitboxSize = Vector2(180, 200);
+    final hitboxSize = Vector2(105, 180);
     final hitboxOffset = Vector2(
       (size.x - hitboxSize.x) / 2,
       size.y - hitboxSize.y,
