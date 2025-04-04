@@ -72,7 +72,12 @@ class BushPlatform extends PositionComponent
 
   // Check if we have both local and remote monkeys
   bool get _hasBothMonkeys {
-    if (_monkeysOnPlatform.length < 2) return false;
+    if (_monkeysOnPlatform.length < 2) {
+      print(
+        'Need at least 2 monkeys. Current count: ${_monkeysOnPlatform.length}',
+      );
+      return false;
+    }
 
     bool hasLocalPlayer = false;
     bool hasRemotePlayer = false;
@@ -80,15 +85,21 @@ class BushPlatform extends PositionComponent
     for (final monkey in _monkeysOnPlatform) {
       if (monkey.isRemotePlayer) {
         hasRemotePlayer = true;
+        print('Found remote player: ${monkey.playerId}');
       } else {
         hasLocalPlayer = true;
+        print('Found local player: ${monkey.playerId}');
       }
 
       // Early return if we already found both types
-      if (hasLocalPlayer && hasRemotePlayer) return true;
+      if (hasLocalPlayer && hasRemotePlayer) break;
     }
 
-    return hasLocalPlayer && hasRemotePlayer;
+    final result = hasLocalPlayer && hasRemotePlayer;
+    print(
+      'Has both monkeys: $result (local: $hasLocalPlayer, remote: $hasRemotePlayer)',
+    );
+    return result;
   }
 
   void startReturning() {
@@ -106,62 +117,72 @@ class BushPlatform extends PositionComponent
 
   // Method to explicitly trigger platform movement (can be called from game state sync)
   void triggerMovement(String? playerId) {
+    print('Attempting to trigger movement with playerId: $playerId');
     if (!_isMoving && !_isReturning && !_hasMoved) {
+      print('Conditions met, triggering platform movement');
       _isMoving = true;
       _hasMoved = true;
       _movementTriggeredBy = playerId;
 
       // Broadcast movement state to all players
       _broadcastState('moving');
+    } else {
+      print(
+        'Cannot trigger movement: isMoving=$_isMoving, isReturning=$_isReturning, hasMoved=$_hasMoved',
+      );
     }
   }
 
   // Method to synchronize this platform's state based on network message
   void syncState(String state, Map<String, dynamic> data) {
+    print(
+      'Received syncState: $state from ${data['playerId']}, current state: isMoving=$_isMoving, isReturning=$_isReturning',
+    );
+
     // If we already have the exact same state from the same player, ignore to prevent loops
     if (_movementTriggeredBy == data['playerId'] &&
-            (_isMoving && state == 'moving') ||
-        (_isReturning && state == 'returning')) {
+        ((_isMoving && state == 'moving') ||
+            (_isReturning && state == 'returning'))) {
+      print('Ignoring duplicate state from same player');
       return;
     }
 
     switch (state) {
       case 'moving':
-        // Only update if we're not already moving
-        if (!_isMoving && !_isReturning) {
-          _isMoving = true;
-          _hasMoved = true;
-          _isReturning = false;
-          _reachedDestination = false;
-          _movementTriggeredBy = data['playerId'];
-          _moveTimer = data['timer'] ?? 0.0;
+        print('Processing MOVING state');
+        // More permissive update to ensure movement is synchronized
+        _isMoving = true;
+        _hasMoved = true;
+        _isReturning = false;
+        _reachedDestination = false;
+        _movementTriggeredBy = data['playerId'];
+        _moveTimer = data['timer'] ?? 0.0;
 
-          // If position data is included, synchronize it
-          if (data.containsKey('x') && data.containsKey('y')) {
-            position.x = data['x'];
-            position.y = data['y'];
-          }
+        // If position data is included, synchronize it
+        if (data.containsKey('x') && data.containsKey('y')) {
+          print('Updating position to x=${data['x']}, y=${data['y']}');
+          position.x = data['x'];
+          position.y = data['y'];
         }
         break;
 
       case 'returning':
-        // Only update if not already returning
-        if (!_isReturning) {
-          _isReturning = true;
-          _isMoving = false;
-          _hasMoved = true;
-          _reachedDestination = false;
-          _movementTriggeredBy = data['playerId'];
+        print('Processing RETURNING state');
+        _isReturning = true;
+        _isMoving = false;
+        _hasMoved = true;
+        _reachedDestination = false;
+        _movementTriggeredBy = data['playerId'];
 
-          // If position data is included, synchronize it
-          if (data.containsKey('x') && data.containsKey('y')) {
-            position.x = data['x'];
-            position.y = data['y'];
-          }
+        // If position data is included, synchronize it
+        if (data.containsKey('x') && data.containsKey('y')) {
+          position.x = data['x'];
+          position.y = data['y'];
         }
         break;
 
       case 'reset':
+        print('Processing RESET state');
         position = startPosition.clone();
         _isMoving = false;
         _isReturning = false;
@@ -186,6 +207,7 @@ class BushPlatform extends PositionComponent
     if (gameRef.socket != null &&
         gameRef.matchId != null &&
         gameRef.session != null) {
+      print('Broadcasting platform state: $state');
       final data = {
         'type': 'platform_state',
         'platformId': _platformId,
@@ -199,11 +221,18 @@ class BushPlatform extends PositionComponent
         'hasMoved': _hasMoved,
       };
 
-      gameRef.socket!.sendMatchData(
-        matchId: gameRef.matchId!,
-        opCode: 3, // Use a unique opCode for platform states
-        data: List<int>.from(utf8.encode(jsonEncode(data))),
-      );
+      try {
+        gameRef.socket!.sendMatchData(
+          matchId: gameRef.matchId!,
+          opCode: 3, // Use a unique opCode for platform states
+          data: List<int>.from(utf8.encode(jsonEncode(data))),
+        );
+        print('Successfully sent platform state message');
+      } catch (e) {
+        print('Error sending platform state: $e');
+      }
+    } else {
+      print('Cannot broadcast state - socket or session not available');
     }
   }
 
@@ -289,19 +318,30 @@ class BushPlatform extends PositionComponent
 
     // Start moving only when both monkeys are on the platform
     if (!_isMoving && !_isReturning && !_hasMoved && _hasBothMonkeys) {
-      final localPlayer = _monkeysOnPlatform.firstWhere(
-        (m) => !m.isRemotePlayer,
-      );
-      triggerMovement(localPlayer.playerId);
+      try {
+        final localPlayer = _monkeysOnPlatform.firstWhere(
+          (m) => !m.isRemotePlayer,
+        );
+        print('Triggering movement from local player: ${localPlayer.playerId}');
+        triggerMovement(localPlayer.playerId);
+      } catch (e) {
+        print('Error triggering movement: $e');
+      }
+    }
+
+    // Send periodic updates regardless of state to ensure synchronization
+    if (_moveTimer % 0.3 < dt) {
+      if (_isMoving) {
+        _broadcastState('moving');
+      } else if (_isReturning) {
+        _broadcastState('returning');
+      } else if (_hasMoved) {
+        _broadcastState('position');
+      }
     }
 
     if (_isMoving) {
       _moveTimer += dt;
-
-      // Broadcast position updates periodically for smoother synchronization
-      if (_moveTimer % 0.5 < dt) {
-        _broadcastState('position');
-      }
 
       if (_moveTimer >= _moveTime) {
         // Stop moving but stay in position
@@ -348,11 +388,6 @@ class BushPlatform extends PositionComponent
       // Update monkey positions only during active movement
       _updateMonkeyPositions();
     } else if (_isReturning) {
-      // Broadcast position updates periodically for smoother synchronization
-      if (_moveTimer % 0.5 < dt) {
-        _broadcastState('position');
-      }
-
       final Vector2 toStart = startPosition - position;
       if (toStart.length < _moveSpeed * dt) {
         // Close enough to snap to start position
