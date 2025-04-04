@@ -364,7 +364,7 @@ class LobbyGame extends ApeEscapeGame {
     socket.onMatchData.listen(_handleMatchData);
     socket.onMatchPresence.listen(_handleMatchPresence);
 
-    debugMode = true;
+    debugMode = false;
     print("LobbyGame size: ${size}");
     print("Ground position: ${ground.position}, size: ${ground.size}");
     print("Door position: ${door.position}, size: ${door.size}");

@@ -31,21 +31,14 @@ class Tree extends PositionComponent with CollisionCallbacks {
     // Add top row of tree pieces
     // Left edge
 
-    // Add left block under top row
-    add(SpriteComponent(
-      sprite: treeLeftSprite,
-      position: Vector2(blockSize * 2, -blockSize * 2.25),  // One block below top row
-      size: Vector2.all(blockSize),
-    ));
-
     
 
     // Add platform hitbox for the two highest blocks
     add(RectangleHitbox(
-      size: Vector2(blockSize * 2 * 0.8, blockSize * 0.1),  // Width of two blocks, thin height
+      size: Vector2(blockSize * 0.8, blockSize * 0.1),  // Width of two blocks, thin height
       position: Vector2(
         blockSize * 2.2,  // Slightly inset from left edge
-        3 - blockSize * 0.05,  // Half a block higher, plus 3 pixels down
+        5 - blockSize * 0.05 + 50,  // Half a block higher, plus 3 pixels down
       ),
       collisionType: CollisionType.passive,
     )..debugMode = ApeEscapeGame.showHitboxes);

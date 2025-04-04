@@ -57,7 +57,7 @@ class ApeEscapeGame extends FlameGame
   final Map<String, double> remoteScreenHeights = {};
 
   // Debug mode
-  static bool showHitboxes = true;
+  static bool showHitboxes = false;
 
   // World boundaries
   static const worldWidth = 8500.0;
@@ -403,22 +403,11 @@ class ApeEscapeGame extends FlameGame
     );
     gameLayer.add(rectangularPlatform);
 
-    // Add floating mushroom platform above the rectangular platform's path
-    final floatingMushroom = Mushroom(
-      worldWidth: worldWidth,
-      height: gameHeight,
-      startPosition: Vector2(
-        blocksX + (Platform.platformSize * 67),
-        gameHeight - Platform.platformSize * 8,
-      ),
-    );
-    gameLayer.add(floatingMushroom);
-
     // Create the bush immediately but don't start moving it yet
     final puzzleBush = Bush(
       startPosition: Vector2(
         blocksX + (Platform.platformSize * 75),
-        gameHeight * 0.3,
+        gameHeight * 0.3 - (Platform.platformSize * 3),
       ),
       pieceCount: 13,
     );
@@ -427,10 +416,10 @@ class ApeEscapeGame extends FlameGame
     // Add vertically moving platform after the bush
     final verticalMovingPlatform = BushPlatform(
       startPosition: Vector2(
-        blocksX + (Platform.platformSize * 82),
+        blocksX + (Platform.platformSize * 78),
         gameHeight - Platform.platformSize * 4,
       ),
-      numBlocks: 5,
+      numBlocks: 10,
       height: 1,
       moveRight: false,
     );
@@ -447,7 +436,7 @@ class ApeEscapeGame extends FlameGame
       numBlocks: numBlocksNeeded,
       startPosition: Vector2(
         finalPlatformStartX,
-        gameHeight - Platform.platformSize * 12,
+        gameHeight - Platform.platformSize * 2,
       ),
       heightInBlocks: 2,
     );
@@ -457,7 +446,7 @@ class ApeEscapeGame extends FlameGame
     final door = Door(
       Vector2(
         worldWidth - Platform.platformSize * 4,
-        gameHeight - Platform.platformSize * 14,
+        gameHeight - Platform.platformSize * 5.5,
       ),
       onPlayerEnter: () {},
     );
