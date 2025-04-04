@@ -1,239 +1,44 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'game.dart';
-import 'platform.dart';
-import 'bush.dart';
 import 'monkey.dart';
-import 'dart:convert';
 
-class BushPlatform extends PositionComponent
-    with CollisionCallbacks, HasGameRef<ApeEscapeGame> {
-  static const double bushSize = 56.0; // Same size as platform blocks
+class BushPlatform extends PositionComponent with CollisionCallbacks {
+  static const double bushSize = 56.0;
   final Vector2 startPosition;
   final int numBlocks;
   final double height;
-  final bool moveRight; // Whether to move right instead of up
+  final bool moveRight;
 
   // Movement constants
-  static const double _moveSpeed = 80.0;
-  static const double _targetHeight = 80.0;
-  static const double _moveTime = 3.0;
-  static const double _hitboxHeight = 0.2;
-  static const double _hitboxYOffset = 0.15;
-
-  // Platform state
-  bool _isMoving = false;
-  bool _isReturning = false;
-  bool _hasMoved = false; // Track if platform has moved from starting position
-  double _moveTimer = 0.0;
-  bool _reachedDestination = false;
+  final double moveDistance;
+  final double moveSpeed;
+  late final Vector2 _originalPosition;
+  double _direction = 1;
 
   // Monkey tracking
   final Set<Monkey> _monkeysOnPlatform = {};
-  final Set<String> _monkeyIds = {};
 
-  // Offsets for monkey positioning
-  late final double _monkeyYOffset;
+  // Collision settings
+  static const double _hitboxHeight = 0.2;
+  static const double _hitboxYOffset = 0.15;
 
-  // For synchronization across clients
-  String? _movementTriggeredBy;
-  String _platformId = '';
-
-  // Getter for platformId
-  String get platformId => _platformId;
+  // For network identification
+  final String platformId;
 
   BushPlatform({
     required this.startPosition,
-    this.numBlocks = 5, // Default to 5 blocks
-    this.height = 1, // Default to 1 block height
-    this.moveRight = false, // Default to moving up
+    this.numBlocks = 5,
+    this.height = 1,
+    this.moveRight = false,
+    this.moveDistance = 80.0,
+    this.moveSpeed = 50.0,
     String? id,
-  }) {
-    position = startPosition.clone(); // Clone to keep original startPosition
-    size = Vector2(bushSize * numBlocks, bushSize * height);
-    _monkeyYOffset = bushSize * _hitboxYOffset;
-    _platformId = id ?? 'bush_platform_${position.x}_${position.y}';
-  }
-
-  void reset() {
+  }) : platformId =
+           id ?? 'bush_platform_${startPosition.x}_${startPosition.y}' {
     position = startPosition.clone();
-    _isMoving = false;
-    _isReturning = false;
-    _hasMoved = false;
-    _reachedDestination = false;
-    _moveTimer = 0.0;
-    _monkeysOnPlatform.clear();
-    _monkeyIds.clear();
-    _movementTriggeredBy = null;
-
-    // Broadcast reset state to ensure all clients see the same state
-    _broadcastState('reset');
-  }
-
-  // Check if we have both local and remote monkeys
-  bool get _hasBothMonkeys {
-    if (_monkeysOnPlatform.length < 2) {
-      print(
-        'Need at least 2 monkeys. Current count: ${_monkeysOnPlatform.length}',
-      );
-      return false;
-    }
-
-    bool hasLocalPlayer = false;
-    bool hasRemotePlayer = false;
-
-    for (final monkey in _monkeysOnPlatform) {
-      if (monkey.isRemotePlayer) {
-        hasRemotePlayer = true;
-        print('Found remote player: ${monkey.playerId}');
-      } else {
-        hasLocalPlayer = true;
-        print('Found local player: ${monkey.playerId}');
-      }
-
-      // Early return if we already found both types
-      if (hasLocalPlayer && hasRemotePlayer) break;
-    }
-
-    final result = hasLocalPlayer && hasRemotePlayer;
-    print(
-      'Has both monkeys: $result (local: $hasLocalPlayer, remote: $hasRemotePlayer)',
-    );
-    return result;
-  }
-
-  void startReturning() {
-    if (_hasMoved && !_isReturning) {
-      _isReturning = true;
-      _isMoving = false;
-      _moveTimer = 0.0;
-      _reachedDestination = false;
-      _movementTriggeredBy = null;
-
-      // Broadcast returning state
-      _broadcastState('returning');
-    }
-  }
-
-  // Method to explicitly trigger platform movement (can be called from game state sync)
-  void triggerMovement(String? playerId) {
-    print('Attempting to trigger movement with playerId: $playerId');
-    if (!_isMoving && !_isReturning && !_hasMoved) {
-      print('Conditions met, triggering platform movement');
-      _isMoving = true;
-      _hasMoved = true;
-      _movementTriggeredBy = playerId;
-
-      // Broadcast movement state to all players
-      _broadcastState('moving');
-    } else {
-      print(
-        'Cannot trigger movement: isMoving=$_isMoving, isReturning=$_isReturning, hasMoved=$_hasMoved',
-      );
-    }
-  }
-
-  // Method to synchronize this platform's state based on network message
-  void syncState(String state, Map<String, dynamic> data) {
-    print(
-      'Received syncState: $state from ${data['playerId']}, current state: isMoving=$_isMoving, isReturning=$_isReturning',
-    );
-
-    // If we already have the exact same state from the same player, ignore to prevent loops
-    if (_movementTriggeredBy == data['playerId'] &&
-        ((_isMoving && state == 'moving') ||
-            (_isReturning && state == 'returning'))) {
-      print('Ignoring duplicate state from same player');
-      return;
-    }
-
-    switch (state) {
-      case 'moving':
-        print('Processing MOVING state');
-        // More permissive update to ensure movement is synchronized
-        _isMoving = true;
-        _hasMoved = true;
-        _isReturning = false;
-        _reachedDestination = false;
-        _movementTriggeredBy = data['playerId'];
-        _moveTimer = data['timer'] ?? 0.0;
-
-        // If position data is included, synchronize it
-        if (data.containsKey('x') && data.containsKey('y')) {
-          print('Updating position to x=${data['x']}, y=${data['y']}');
-          position.x = data['x'];
-          position.y = data['y'];
-        }
-        break;
-
-      case 'returning':
-        print('Processing RETURNING state');
-        _isReturning = true;
-        _isMoving = false;
-        _hasMoved = true;
-        _reachedDestination = false;
-        _movementTriggeredBy = data['playerId'];
-
-        // If position data is included, synchronize it
-        if (data.containsKey('x') && data.containsKey('y')) {
-          position.x = data['x'];
-          position.y = data['y'];
-        }
-        break;
-
-      case 'reset':
-        print('Processing RESET state');
-        position = startPosition.clone();
-        _isMoving = false;
-        _isReturning = false;
-        _hasMoved = false;
-        _reachedDestination = false;
-        _moveTimer = 0.0;
-        break;
-
-      case 'position':
-        // Direct position update
-        if (data.containsKey('x') && data.containsKey('y')) {
-          position.x = data['x'];
-          position.y = data['y'];
-        }
-        break;
-    }
-  }
-
-  // Broadcast the platform's state to all players
-  void _broadcastState(String state) {
-    // Only attempt to broadcast if socket exists
-    if (gameRef.socket != null &&
-        gameRef.matchId != null &&
-        gameRef.session != null) {
-      print('Broadcasting platform state: $state');
-      final data = {
-        'type': 'platform_state',
-        'platformId': _platformId,
-        'state': state,
-        'playerId': gameRef.session!.userId,
-        'x': position.x,
-        'y': position.y,
-        'timer': _moveTimer,
-        'isMoving': _isMoving,
-        'isReturning': _isReturning,
-        'hasMoved': _hasMoved,
-      };
-
-      try {
-        gameRef.socket!.sendMatchData(
-          matchId: gameRef.matchId!,
-          opCode: 3, // Use a unique opCode for platform states
-          data: List<int>.from(utf8.encode(jsonEncode(data))),
-        );
-        print('Successfully sent platform state message');
-      } catch (e) {
-        print('Error sending platform state: $e');
-      }
-    } else {
-      print('Cannot broadcast state - socket or session not available');
-    }
+    _originalPosition = startPosition.clone();
+    size = Vector2(bushSize * numBlocks, bushSize * height);
   }
 
   @override
@@ -284,12 +89,18 @@ class BushPlatform extends PositionComponent
 
   void _updateMonkeyPositions() {
     for (final monkey in _monkeysOnPlatform) {
-      if (!monkey.isDead) {
-        // Keep monkeys firmly attached to platform only during movement
-        // or if they're still on the platform (not jumping)
-        if (monkey.isGrounded && monkey.velocity.y >= 0) {
-          monkey.position.y = position.y - monkey.size.y / 2 + _monkeyYOffset;
-          monkey.velocity.y = 0;
+      if (!monkey.isDead && monkey.isGrounded) {
+        if (moveRight) {
+          // For horizontal movement, match the platform's velocity
+          // This makes the monkey move with the platform while still allowing player control
+          monkey.position.x +=
+              moveSpeed *
+              _direction *
+              0.016; // Approximate delta time of one frame
+        } else {
+          // For vertical movement, keep the monkey firmly attached to the platform
+          monkey.position.y =
+              position.y - monkey.size.y / 2 + bushSize * _hitboxYOffset;
         }
       }
     }
@@ -299,104 +110,33 @@ class BushPlatform extends PositionComponent
   void update(double dt) {
     super.update(dt);
 
-    // Handle monkey deaths
-    final deadMonkeys = _monkeysOnPlatform.where((m) => m.isDead).toList();
-    if (deadMonkeys.isNotEmpty) {
-      for (final monkey in deadMonkeys) {
-        _monkeysOnPlatform.remove(monkey);
-        if (monkey.playerId != null) {
-          _monkeyIds.remove(monkey.playerId);
-        }
+    // Remove dead monkeys from tracking
+    _monkeysOnPlatform.removeWhere((monkey) => monkey.isDead);
+
+    if (moveRight) {
+      // Move horizontally
+      position.x += moveSpeed * _direction * dt;
+
+      // Check if we need to change direction
+      if (_direction > 0 && position.x >= _originalPosition.x + moveDistance) {
+        _direction = -1;
+      } else if (_direction < 0 && position.x <= _originalPosition.x) {
+        _direction = 1;
+      }
+    } else {
+      // Move vertically
+      position.y += moveSpeed * _direction * dt;
+
+      // Check if we need to change direction
+      if (_direction > 0 && position.y >= _originalPosition.y + moveDistance) {
+        _direction = -1;
+      } else if (_direction < 0 && position.y <= _originalPosition.y) {
+        _direction = 1;
       }
     }
 
-    // Check if any monkey is dead and reset platform if needed
-    if (_isMoving && _monkeysOnPlatform.any((m) => m.isDead)) {
-      reset();
-      return;
-    }
-
-    // Start moving only when both monkeys are on the platform
-    if (!_isMoving && !_isReturning && !_hasMoved && _hasBothMonkeys) {
-      try {
-        final localPlayer = _monkeysOnPlatform.firstWhere(
-          (m) => !m.isRemotePlayer,
-        );
-        print('Triggering movement from local player: ${localPlayer.playerId}');
-        triggerMovement(localPlayer.playerId);
-      } catch (e) {
-        print('Error triggering movement: $e');
-      }
-    }
-
-    // Send periodic updates regardless of state to ensure synchronization
-    if (_moveTimer % 0.3 < dt) {
-      if (_isMoving) {
-        _broadcastState('moving');
-      } else if (_isReturning) {
-        _broadcastState('returning');
-      } else if (_hasMoved) {
-        _broadcastState('position');
-      }
-    }
-
-    if (_isMoving) {
-      _moveTimer += dt;
-
-      if (_moveTimer >= _moveTime) {
-        // Stop moving but stay in position
-        _isMoving = false;
-        _reachedDestination = true;
-
-        // Final position adjustment
-        if (moveRight) {
-          // No special handling needed for horizontal movement
-        } else {
-          // Set final vertical position
-          position.y = startPosition.y - _targetHeight;
-        }
-
-        // Broadcast final position
-        _broadcastState('position');
-        return;
-      }
-
-      if (moveRight) {
-        // Move right
-        position.x += _moveSpeed * dt;
-
-        // Move all monkeys right with platform
-        for (final monkey in _monkeysOnPlatform) {
-          if (!monkey.isDead && monkey.isGrounded) {
-            monkey.position.x += _moveSpeed * dt;
-          }
-        }
-      } else {
-        // Move upward
-        position.y -= _moveSpeed * dt;
-
-        // Check if we've reached the target height
-        if (position.y <= startPosition.y - _targetHeight) {
-          position.y = startPosition.y - _targetHeight;
-          _isMoving = false;
-          _reachedDestination = true;
-          // Broadcast final position
-          _broadcastState('position');
-        }
-      }
-
-      // Update monkey positions only during active movement
-      _updateMonkeyPositions();
-    } else if (_isReturning) {
-      final Vector2 toStart = startPosition - position;
-      if (toStart.length < _moveSpeed * dt) {
-        // Close enough to snap to start position
-        reset();
-      } else {
-        toStart.normalize();
-        position += toStart * _moveSpeed * dt;
-      }
-    }
+    // Update positions of all monkeys on the platform
+    _updateMonkeyPositions();
   }
 
   @override
@@ -404,50 +144,34 @@ class BushPlatform extends PositionComponent
     Set<Vector2> intersectionPoints,
     PositionComponent other,
   ) {
-    if (other is Monkey && !_isReturning) {
-      // Only add the monkey if it's not already being tracked
-      // and check if we already have this player ID
-      if (!_monkeysOnPlatform.contains(other) &&
-          (other.playerId == null || !_monkeyIds.contains(other.playerId))) {
-        // Set the monkey's position firmly on top of the platform
-        other.position.y = position.y - other.size.y / 2 + _monkeyYOffset;
-        other.velocity.y = 0;
-        other.isGrounded = true;
+    if (other is Monkey) {
+      // Only add monkey if not already tracked
+      if (!_monkeysOnPlatform.contains(other)) {
+        // Check if the monkey is landing on top (not hitting from below or sides)
+        final monkeyBottom = other.position.y + other.size.y / 2;
+        final platformTop = position.y + bushSize * _hitboxYOffset;
 
-        // Update animation based on movement
-        if (other.joystick != null) {
-          other.animation =
-              (other.joystick!.delta.x.abs() > 0)
-                  ? other.runAnimation
-                  : other.idleAnimation;
-        } else {
-          other.animation = other.idleAnimation;
-        }
+        if ((monkeyBottom - platformTop).abs() < 10 && other.velocity.y >= 0) {
+          other.isGrounded = true;
+          other.velocity.y = 0;
 
-        // Track this monkey
-        _monkeysOnPlatform.add(other);
-        if (other.playerId != null) {
-          _monkeyIds.add(other.playerId!);
-        }
+          // Position monkey on top of platform
+          other.position.y =
+              position.y - other.size.y / 2 + bushSize * _hitboxYOffset;
 
-        // If platform has already reached its destination,
-        // we don't need to keep the monkey's y-position locked
-        if (_reachedDestination) {
-          // Allow monkey to jump and fall naturally
-        }
-
-        // Reset callback for monkey
-        other.setOnReset(() {
-          if (_monkeysOnPlatform.contains(other)) {
-            _monkeysOnPlatform.remove(other);
-            if (other.playerId != null) {
-              _monkeyIds.remove(other.playerId);
-            }
+          // Update animation based on movement
+          if (other.joystick != null) {
+            other.animation =
+                (other.joystick!.delta.x.abs() > 0)
+                    ? other.runAnimation
+                    : other.idleAnimation;
+          } else {
+            other.animation = other.idleAnimation;
           }
 
-          // If any monkey resets, also reset the platform
-          reset();
-        });
+          // Add to tracked monkeys
+          _monkeysOnPlatform.add(other);
+        }
       }
     }
     super.onCollisionStart(intersectionPoints, other);
@@ -456,31 +180,32 @@ class BushPlatform extends PositionComponent
   @override
   void onCollisionEnd(PositionComponent other) {
     if (other is Monkey) {
-      // Only unground if the monkey is actually leaving the platform
-      // and not just during collision fluctuations
       if (_monkeysOnPlatform.contains(other)) {
-        // Check if the monkey is truly off the platform by position
-        final monkeyBottom = other.position.y + other.size.y / 2;
-        final platformTop = position.y + bushSize * _hitboxYOffset;
+        // Check if monkey is truly off the platform horizontally
+        final platformLeft = position.x - size.x / 2;
+        final platformRight = position.x + size.x / 2;
 
-        // Only remove if monkey is clearly off platform
-        if (monkeyBottom < platformTop - 10 ||
-            other.position.x < position.x - size.x / 2 ||
-            other.position.x > position.x + size.x / 2) {
-          // Set isGrounded to false to allow jumping and proper physics
+        if (other.position.x < platformLeft ||
+            other.position.x > platformRight) {
           other.isGrounded = false;
           _monkeysOnPlatform.remove(other);
-          if (other.playerId != null) {
-            _monkeyIds.remove(other.playerId);
-          }
-
-          // If all monkeys left and platform has moved, start returning
-          if (_monkeysOnPlatform.isEmpty && _hasMoved) {
-            startReturning();
-          }
+        }
+        // If monkey is jumping, let physics handle it but keep it in our tracking set
+        else if (other.velocity.y < 0) {
+          other.isGrounded = false;
         }
       }
     }
     super.onCollisionEnd(other);
+  }
+
+  // Method for network synchronization (to keep compatible with game.dart)
+  void syncState(String state, Map<String, dynamic> data) {
+    // This class doesn't need state syncing as movement is deterministic
+    // If position data is included, we could sync it
+    if (data.containsKey('x') && data.containsKey('y')) {
+      position.x = data['x'];
+      position.y = data['y'];
+    }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'game.dart';
+import 'monkey.dart';
 
 class RectangularMovingPlatform extends PositionComponent
     with CollisionCallbacks {
@@ -13,6 +14,9 @@ class RectangularMovingPlatform extends PositionComponent
   Vector2 _currentTarget = Vector2.zero();
   int _currentCorner = 0;
   final int numBlocks; // Number of platform blocks wide
+
+  // Track monkeys on the platform
+  final Set<Monkey> _monkeysOnPlatform = {};
 
   // Add getter for _currentTarget
   Vector2 get currentTarget => _currentTarget;
@@ -73,9 +77,34 @@ class RectangularMovingPlatform extends PositionComponent
     }
   }
 
+  void _updateMonkeyPositions() {
+    for (final monkey in _monkeysOnPlatform) {
+      if (!monkey.isDead && monkey.isGrounded) {
+        // Make sure monkeys move with the platform
+        // First, calculate platform's current velocity
+        final Vector2 toTarget = _currentTarget - position;
+        if (toTarget.length > 0) {
+          toTarget.normalize();
+
+          // Apply the same velocity to the monkey
+          final Vector2 monkeyVelocity =
+              toTarget * moveSpeed * 0.016; // Approximate one frame
+          monkey.position.x += monkeyVelocity.x;
+
+          // For vertical position, keep the monkey firmly on top of the platform
+          monkey.position.y = position.y - monkey.size.y / 2;
+          monkey.velocity.y = 0;
+        }
+      }
+    }
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
+
+    // Remove dead monkeys from tracking
+    _monkeysOnPlatform.removeWhere((monkey) => monkey.isDead);
 
     final Vector2 toTarget = _currentTarget - position;
     if (toTarget.length < moveSpeed * dt) {
@@ -88,5 +117,66 @@ class RectangularMovingPlatform extends PositionComponent
       toTarget.normalize();
       position += toTarget * moveSpeed * dt;
     }
+
+    // Update monkey positions
+    _updateMonkeyPositions();
+  }
+
+  @override
+  void onCollisionStart(
+    Set<Vector2> intersectionPoints,
+    PositionComponent other,
+  ) {
+    if (other is Monkey) {
+      // Only add the monkey if not already being tracked
+      if (!_monkeysOnPlatform.contains(other)) {
+        // Check if monkey is landing on top of the platform
+        final monkeyBottom = other.position.y + other.size.y / 2;
+        final platformTop = position.y;
+
+        if ((monkeyBottom - platformTop).abs() < 10 && other.velocity.y >= 0) {
+          // Set the monkey's position firmly on top of the platform
+          other.position.y = position.y - other.size.y / 2;
+          other.velocity.y = 0;
+          other.isGrounded = true;
+
+          // Update animation based on movement
+          if (other.joystick != null) {
+            other.animation =
+                (other.joystick!.delta.x.abs() > 0)
+                    ? other.runAnimation
+                    : other.idleAnimation;
+          } else {
+            other.animation = other.idleAnimation;
+          }
+
+          // Add to tracked monkeys
+          _monkeysOnPlatform.add(other);
+        }
+      }
+    }
+    super.onCollisionStart(intersectionPoints, other);
+  }
+
+  @override
+  void onCollisionEnd(PositionComponent other) {
+    if (other is Monkey) {
+      if (_monkeysOnPlatform.contains(other)) {
+        // Check if monkey is truly off the platform horizontally
+        final platformLeft = position.x;
+        final platformRight = position.x + size.x;
+
+        if (other.position.x < platformLeft ||
+            other.position.x > platformRight) {
+          other.isGrounded = false;
+          _monkeysOnPlatform.remove(other);
+        }
+        // If monkey is jumping, let physics handle it but keep it in our tracking set
+        else if (other.velocity.y < 0) {
+          other.isGrounded = false;
+        }
+      }
+    }
+    super.onCollisionEnd(other);
   }
 }
