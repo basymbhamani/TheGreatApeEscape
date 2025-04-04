@@ -12,6 +12,13 @@ class BushPlatform extends PositionComponent
   final int numBlocks;
   final double height;
 
+  // Visibility and state management
+  bool _isVisible = false;
+  bool _isStopped = true; // No movement needed
+
+  // Sprites containers to manage visibility
+  final List<SpriteComponent> _bushSprites = [];
+
   // Movement constants
   final double moveDistance = 150.0; // Increased height for more movement
   final double moveSpeed = 50.0;
@@ -27,9 +34,6 @@ class BushPlatform extends PositionComponent
   // Collision settings
   static const double _hitboxHeight = 0.2;
   static const double _hitboxYOffset = 0.15;
-
-  // State flags
-  bool _isStopped = false;
 
   // For network identification
   final String platformId;
@@ -59,7 +63,9 @@ class BushPlatform extends PositionComponent
       size: Vector2.all(bushSize),
     );
     bushLeft.scale.x = -1; // Flip horizontally
+    bushLeft.opacity = 0; // Start invisible
     add(bushLeft);
+    _bushSprites.add(bushLeft);
 
     // Add center bushes
     for (int i = 1; i < numBlocks - 1; i++) {
@@ -68,7 +74,9 @@ class BushPlatform extends PositionComponent
         position: Vector2(bushSize * i, 0),
         size: Vector2.all(bushSize),
       );
+      bushCenter.opacity = 0; // Start invisible
       add(bushCenter);
+      _bushSprites.add(bushCenter);
     }
 
     // Add right bush
@@ -77,9 +85,11 @@ class BushPlatform extends PositionComponent
       position: Vector2(bushSize * (numBlocks - 1), 0),
       size: Vector2.all(bushSize),
     );
+    bushRight.opacity = 0; // Start invisible
     add(bushRight);
+    _bushSprites.add(bushRight);
 
-    // Add wider collision hitbox with increased height
+    // Add collision hitbox - this is always active even when invisible
     add(
       RectangleHitbox(
         size: Vector2(bushSize * numBlocks, bushSize * _hitboxHeight),
@@ -119,11 +129,15 @@ class BushPlatform extends PositionComponent
     }
   }
 
-  void stopMoving() {
-    if (!_isStopped) {
-      _isStopped = true;
-      // Broadcast the stop state to all players
-      _broadcastState('stop');
+  void makeVisible() {
+    if (!_isVisible) {
+      _isVisible = true;
+      // Make all bush sprites visible
+      for (final sprite in _bushSprites) {
+        sprite.opacity = 1;
+      }
+      // Broadcast the visibility state to all players
+      _broadcastState('visible');
     }
   }
 
@@ -154,33 +168,6 @@ class BushPlatform extends PositionComponent
   void update(double dt) {
     super.update(dt);
 
-    // Only move if not stopped
-    if (!_isStopped) {
-      // Calculate new position
-      final double direction = movingUp ? -1 : 1;
-      if (moveRight) {
-        // Move horizontally
-        position.x += direction * moveSpeed * dt;
-
-        // Check if we need to change direction
-        if (movingUp && position.x <= originalY) {
-          movingUp = false;
-        } else if (!movingUp && position.x >= targetY) {
-          movingUp = true;
-        }
-      } else {
-        // Move vertically
-        position.y += direction * moveSpeed * dt;
-
-        // Check if we need to change direction
-        if (movingUp && position.y <= targetY) {
-          movingUp = false;
-        } else if (!movingUp && position.y >= originalY) {
-          movingUp = true;
-        }
-      }
-    }
-
     // Update the positions of monkeys on the platform
     _updateMonkeyPositions();
   }
@@ -188,19 +175,11 @@ class BushPlatform extends PositionComponent
   void _updateMonkeyPositions() {
     for (final monkey in _monkeysOnPlatform) {
       if (!monkey.isDead && monkey.isGrounded) {
-        if (moveRight) {
-          // For horizontal movement, match the platform's velocity
-          monkey.position.x +=
-              (movingUp ? -1 : 1) *
-              moveSpeed *
-              0.016; // Approximate delta time of one frame
-        } else {
-          // For vertical movement, keep monkey attached to the platform
-          monkey.position.y =
-              position.y - monkey.size.y / 2 + bushSize * _hitboxYOffset;
-        }
-      } else if (monkey.velocity.y > 0 && !moveRight) {
-        // Monkey is falling - check if close to the platform (only for vertical platforms)
+        // Keep monkey attached to the platform
+        monkey.position.y =
+            position.y - monkey.size.y / 2 + bushSize * _hitboxYOffset;
+      } else if (monkey.velocity.y > 0) {
+        // Monkey is falling - check if close to the platform
         final monkeyBottom = monkey.position.y + monkey.size.y / 2;
         final platformTop = position.y + bushSize * _hitboxYOffset;
 
@@ -236,8 +215,8 @@ class BushPlatform extends PositionComponent
         // Add to tracked monkeys
         _monkeysOnPlatform.add(other);
 
-        // Stop platform movement when any player lands on it
-        stopMoving();
+        // Make platform visible when any player lands on it
+        makeVisible();
       }
     }
     super.onCollisionStart(intersectionPoints, other);
@@ -263,8 +242,11 @@ class BushPlatform extends PositionComponent
   }
 
   void syncState(String state, Map<String, dynamic>? data) {
-    if (state == 'stop') {
-      _isStopped = true;
+    if (state == 'visible' && !_isVisible) {
+      _isVisible = true;
+      for (final sprite in _bushSprites) {
+        sprite.opacity = 1;
+      }
     }
   }
 }

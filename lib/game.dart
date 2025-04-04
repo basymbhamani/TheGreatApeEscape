@@ -796,15 +796,13 @@ class ApeEscapeGame extends FlameGame
       final platformId = data['platformId'];
       final state = data['state'];
 
-      if (state == 'stop') {
-        // Find the platform with the matching ID
-        final platforms = gameLayer.children.whereType<BushPlatform>();
-        for (final platform in platforms) {
-          if (platform.platformId == platformId) {
-            // Stop the platform
-            platform.syncState('stop', data);
-            break;
-          }
+      // Find the platform with the matching ID
+      final platforms = gameLayer.children.whereType<BushPlatform>();
+      for (final platform in platforms) {
+        if (platform.platformId == platformId) {
+          // Update platform state (stop or visible)
+          platform.syncState(state, data);
+          break;
         }
       }
     }
