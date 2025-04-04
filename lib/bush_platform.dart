@@ -18,6 +18,8 @@ class BushPlatform extends PositionComponent
   late final double originalY;
   late final double targetY;
   bool movingUp = false;
+  final bool
+  moveRight; // Whether the platform moves horizontally instead of vertically
 
   // Monkey tracking
   final Set<Monkey> _monkeysOnPlatform = {};
@@ -36,6 +38,7 @@ class BushPlatform extends PositionComponent
     required this.startPosition,
     this.numBlocks = 5,
     this.height = 1,
+    this.moveRight = false, // Default to vertical movement
     String? id,
   }) : platformId =
            id ?? 'bush_platform_${startPosition.x}_${startPosition.y}' {
@@ -86,17 +89,32 @@ class BushPlatform extends PositionComponent
     );
 
     // Initialize movement parameters
-    originalY = position.y;
-    targetY = originalY - moveDistance;
+    if (moveRight) {
+      // For horizontal movement
+      originalY = position.x;
+      targetY = originalY + moveDistance;
+    } else {
+      // For vertical movement
+      originalY = position.y;
+      targetY = originalY - moveDistance;
+    }
 
     // Make the platform start in a random position in its movement cycle
     final random = math.Random();
     final randomOffset = random.nextDouble() * moveDistance;
     if (random.nextBool()) {
-      position.y = originalY - randomOffset;
+      if (moveRight) {
+        position.x = originalY + randomOffset;
+      } else {
+        position.y = originalY - randomOffset;
+      }
       movingUp = false;
     } else {
-      position.y = originalY - moveDistance + randomOffset;
+      if (moveRight) {
+        position.x = originalY + moveDistance - randomOffset;
+      } else {
+        position.y = originalY - moveDistance + randomOffset;
+      }
       movingUp = true;
     }
   }
@@ -140,13 +158,26 @@ class BushPlatform extends PositionComponent
     if (!_isStopped) {
       // Calculate new position
       final double direction = movingUp ? -1 : 1;
-      position.y += direction * moveSpeed * dt;
+      if (moveRight) {
+        // Move horizontally
+        position.x += direction * moveSpeed * dt;
 
-      // Check if we need to change direction
-      if (movingUp && position.y <= targetY) {
-        movingUp = false;
-      } else if (!movingUp && position.y >= originalY) {
-        movingUp = true;
+        // Check if we need to change direction
+        if (movingUp && position.x <= originalY) {
+          movingUp = false;
+        } else if (!movingUp && position.x >= targetY) {
+          movingUp = true;
+        }
+      } else {
+        // Move vertically
+        position.y += direction * moveSpeed * dt;
+
+        // Check if we need to change direction
+        if (movingUp && position.y <= targetY) {
+          movingUp = false;
+        } else if (!movingUp && position.y >= originalY) {
+          movingUp = true;
+        }
       }
     }
 
@@ -157,11 +188,19 @@ class BushPlatform extends PositionComponent
   void _updateMonkeyPositions() {
     for (final monkey in _monkeysOnPlatform) {
       if (!monkey.isDead && monkey.isGrounded) {
-        // Keep monkey attached to the platform
-        monkey.position.y =
-            position.y - monkey.size.y / 2 + bushSize * _hitboxYOffset;
-      } else if (monkey.velocity.y > 0) {
-        // Monkey is falling - check if close to the platform
+        if (moveRight) {
+          // For horizontal movement, match the platform's velocity
+          monkey.position.x +=
+              (movingUp ? -1 : 1) *
+              moveSpeed *
+              0.016; // Approximate delta time of one frame
+        } else {
+          // For vertical movement, keep monkey attached to the platform
+          monkey.position.y =
+              position.y - monkey.size.y / 2 + bushSize * _hitboxYOffset;
+        }
+      } else if (monkey.velocity.y > 0 && !moveRight) {
+        // Monkey is falling - check if close to the platform (only for vertical platforms)
         final monkeyBottom = monkey.position.y + monkey.size.y / 2;
         final platformTop = position.y + bushSize * _hitboxYOffset;
 
