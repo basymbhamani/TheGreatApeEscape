@@ -4,8 +4,10 @@ import 'game.dart';
 import 'platform.dart';
 import 'bush.dart';
 import 'monkey.dart';
+import 'dart:convert';
 
-class BushPlatform extends PositionComponent with CollisionCallbacks {
+class BushPlatform extends PositionComponent
+    with CollisionCallbacks, HasGameRef<ApeEscapeGame> {
   static const double bushSize = 56.0; // Same size as platform blocks
   final Vector2 startPosition;
   final int numBlocks;
@@ -24,6 +26,7 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
   bool _isReturning = false;
   bool _hasMoved = false; // Track if platform has moved from starting position
   double _moveTimer = 0.0;
+  bool _reachedDestination = false;
 
   // Monkey tracking
   final Set<Monkey> _monkeysOnPlatform = {};
@@ -32,15 +35,24 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
   // Offsets for monkey positioning
   late final double _monkeyYOffset;
 
+  // For synchronization across clients
+  String? _movementTriggeredBy;
+  String _platformId = '';
+
+  // Getter for platformId
+  String get platformId => _platformId;
+
   BushPlatform({
     required this.startPosition,
     this.numBlocks = 5, // Default to 5 blocks
     this.height = 1, // Default to 1 block height
     this.moveRight = false, // Default to moving up
+    String? id,
   }) {
     position = startPosition.clone(); // Clone to keep original startPosition
     size = Vector2(bushSize * numBlocks, bushSize * height);
     _monkeyYOffset = bushSize * _hitboxYOffset;
+    _platformId = id ?? 'bush_platform_${position.x}_${position.y}';
   }
 
   void reset() {
@@ -48,9 +60,14 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
     _isMoving = false;
     _isReturning = false;
     _hasMoved = false;
+    _reachedDestination = false;
     _moveTimer = 0.0;
     _monkeysOnPlatform.clear();
     _monkeyIds.clear();
+    _movementTriggeredBy = null;
+
+    // Broadcast reset state to ensure all clients see the same state
+    _broadcastState('reset');
   }
 
   // Check if we have both local and remote monkeys
@@ -79,6 +96,114 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
       _isReturning = true;
       _isMoving = false;
       _moveTimer = 0.0;
+      _reachedDestination = false;
+      _movementTriggeredBy = null;
+
+      // Broadcast returning state
+      _broadcastState('returning');
+    }
+  }
+
+  // Method to explicitly trigger platform movement (can be called from game state sync)
+  void triggerMovement(String? playerId) {
+    if (!_isMoving && !_isReturning && !_hasMoved) {
+      _isMoving = true;
+      _hasMoved = true;
+      _movementTriggeredBy = playerId;
+
+      // Broadcast movement state to all players
+      _broadcastState('moving');
+    }
+  }
+
+  // Method to synchronize this platform's state based on network message
+  void syncState(String state, Map<String, dynamic> data) {
+    // If we already have the exact same state from the same player, ignore to prevent loops
+    if (_movementTriggeredBy == data['playerId'] &&
+            (_isMoving && state == 'moving') ||
+        (_isReturning && state == 'returning')) {
+      return;
+    }
+
+    switch (state) {
+      case 'moving':
+        // Only update if we're not already moving
+        if (!_isMoving && !_isReturning) {
+          _isMoving = true;
+          _hasMoved = true;
+          _isReturning = false;
+          _reachedDestination = false;
+          _movementTriggeredBy = data['playerId'];
+          _moveTimer = data['timer'] ?? 0.0;
+
+          // If position data is included, synchronize it
+          if (data.containsKey('x') && data.containsKey('y')) {
+            position.x = data['x'];
+            position.y = data['y'];
+          }
+        }
+        break;
+
+      case 'returning':
+        // Only update if not already returning
+        if (!_isReturning) {
+          _isReturning = true;
+          _isMoving = false;
+          _hasMoved = true;
+          _reachedDestination = false;
+          _movementTriggeredBy = data['playerId'];
+
+          // If position data is included, synchronize it
+          if (data.containsKey('x') && data.containsKey('y')) {
+            position.x = data['x'];
+            position.y = data['y'];
+          }
+        }
+        break;
+
+      case 'reset':
+        position = startPosition.clone();
+        _isMoving = false;
+        _isReturning = false;
+        _hasMoved = false;
+        _reachedDestination = false;
+        _moveTimer = 0.0;
+        break;
+
+      case 'position':
+        // Direct position update
+        if (data.containsKey('x') && data.containsKey('y')) {
+          position.x = data['x'];
+          position.y = data['y'];
+        }
+        break;
+    }
+  }
+
+  // Broadcast the platform's state to all players
+  void _broadcastState(String state) {
+    // Only attempt to broadcast if socket exists
+    if (gameRef.socket != null &&
+        gameRef.matchId != null &&
+        gameRef.session != null) {
+      final data = {
+        'type': 'platform_state',
+        'platformId': _platformId,
+        'state': state,
+        'playerId': gameRef.session!.userId,
+        'x': position.x,
+        'y': position.y,
+        'timer': _moveTimer,
+        'isMoving': _isMoving,
+        'isReturning': _isReturning,
+        'hasMoved': _hasMoved,
+      };
+
+      gameRef.socket!.sendMatchData(
+        matchId: gameRef.matchId!,
+        opCode: 3, // Use a unique opCode for platform states
+        data: List<int>.from(utf8.encode(jsonEncode(data))),
+      );
     }
   }
 
@@ -131,12 +256,12 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
   void _updateMonkeyPositions() {
     for (final monkey in _monkeysOnPlatform) {
       if (!monkey.isDead) {
-        // Keep monkeys firmly attached to platform
-        monkey.position.y = position.y - monkey.size.y / 2 + _monkeyYOffset;
-
-        // Reset monkey velocity to prevent falling
-        monkey.velocity.y = 0;
-        monkey.isGrounded = true;
+        // Keep monkeys firmly attached to platform only during movement
+        // or if they're still on the platform (not jumping)
+        if (monkey.isGrounded && monkey.velocity.y >= 0) {
+          monkey.position.y = position.y - monkey.size.y / 2 + _monkeyYOffset;
+          monkey.velocity.y = 0;
+        }
       }
     }
   }
@@ -163,18 +288,36 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
     }
 
     // Start moving only when both monkeys are on the platform
-    if (!_isMoving && !_isReturning && _hasBothMonkeys) {
-      _isMoving = true;
-      _hasMoved = true;
+    if (!_isMoving && !_isReturning && !_hasMoved && _hasBothMonkeys) {
+      final localPlayer = _monkeysOnPlatform.firstWhere(
+        (m) => !m.isRemotePlayer,
+      );
+      triggerMovement(localPlayer.playerId);
     }
 
     if (_isMoving) {
       _moveTimer += dt;
 
+      // Broadcast position updates periodically for smoother synchronization
+      if (_moveTimer % 0.5 < dt) {
+        _broadcastState('position');
+      }
+
       if (_moveTimer >= _moveTime) {
         // Stop moving but stay in position
         _isMoving = false;
-        _updateMonkeyPositions(); // Final position adjustment
+        _reachedDestination = true;
+
+        // Final position adjustment
+        if (moveRight) {
+          // No special handling needed for horizontal movement
+        } else {
+          // Set final vertical position
+          position.y = startPosition.y - _targetHeight;
+        }
+
+        // Broadcast final position
+        _broadcastState('position');
         return;
       }
 
@@ -184,7 +327,7 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
 
         // Move all monkeys right with platform
         for (final monkey in _monkeysOnPlatform) {
-          if (!monkey.isDead) {
+          if (!monkey.isDead && monkey.isGrounded) {
             monkey.position.x += _moveSpeed * dt;
           }
         }
@@ -196,12 +339,20 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
         if (position.y <= startPosition.y - _targetHeight) {
           position.y = startPosition.y - _targetHeight;
           _isMoving = false;
+          _reachedDestination = true;
+          // Broadcast final position
+          _broadcastState('position');
         }
       }
 
-      // Update all monkeys' positions to keep them firmly on platform
+      // Update monkey positions only during active movement
       _updateMonkeyPositions();
     } else if (_isReturning) {
+      // Broadcast position updates periodically for smoother synchronization
+      if (_moveTimer % 0.5 < dt) {
+        _broadcastState('position');
+      }
+
       final Vector2 toStart = startPosition - position;
       if (toStart.length < _moveSpeed * dt) {
         // Close enough to snap to start position
@@ -244,6 +395,12 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
           _monkeyIds.add(other.playerId!);
         }
 
+        // If platform has already reached its destination,
+        // we don't need to keep the monkey's y-position locked
+        if (_reachedDestination) {
+          // Allow monkey to jump and fall naturally
+        }
+
         // Reset callback for monkey
         other.setOnReset(() {
           if (_monkeysOnPlatform.contains(other)) {
@@ -275,6 +432,7 @@ class BushPlatform extends PositionComponent with CollisionCallbacks {
         if (monkeyBottom < platformTop - 10 ||
             other.position.x < position.x - size.x / 2 ||
             other.position.x > position.x + size.x / 2) {
+          // Set isGrounded to false to allow jumping and proper physics
           other.isGrounded = false;
           _monkeysOnPlatform.remove(other);
           if (other.playerId != null) {

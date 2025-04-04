@@ -510,149 +510,25 @@ class ApeEscapeGame extends FlameGame
 
     // Process update from remote player
     if (socket != null && matchId != null && session != null) {
-      socket!.onMatchData.listen((event) {
-        if (event.matchId == matchId) {
-          try {
-            final rawData = event.data;
-            if (rawData == null) {
-              print('Received null raw data');
-              return;
-            }
+      socket!.onMatchData.listen(onMatchData);
 
-            final data =
-                jsonDecode(String.fromCharCodes(rawData))
-                    as Map<String, dynamic>;
-            print('Raw data received: $data');
+      // Add notification for connecting
+      print('Connected to match: $matchId');
 
-            final playerId = data['playerId'] as String?;
-            if (playerId == null) {
-              print('No playerId in data');
-              return;
-            }
+      // Setup match join message
+      final joinData = {
+        'type': 'player_join',
+        'playerId': session!.userId,
+        'playerName': 'Player (${session!.userId.substring(0, 4)})',
+        'screenHeight': gameHeight,
+      };
 
-            if (playerId == session!.userId) {
-              print('Ignoring own update');
-              return;
-            }
-
-            print('Processing update from player: $playerId');
-
-            // Handle pause events
-            if (event.opCode == 2) {
-              final type = data['type'] as String?;
-              if (type == 'pause') {
-                final isPaused = data['isPaused'] as bool? ?? false;
-                if (isPaused) {
-                  _isPaused = true;
-                  timer.pause();
-                  player.disableControls();
-                  overlays.add('pause');
-                  pauseEngine();
-                } else {
-                  _isPaused = false;
-                  timer.start();
-                  player.enableControls();
-                  overlays.remove('pause');
-                  resumeEngine();
-                }
-                return;
-              } else if (type == 'restart') {
-                // Handle restart signal from other players
-                resetLevel();
-                return;
-              } else if (type == 'return_to_menu') {
-                // Handle return to menu signal from other players
-                final BuildContext? ctx = buildContext;
-                if (ctx != null) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    // Navigate to host join screen
-                    Navigator.of(ctx).popUntil((route) => route.isFirst);
-
-                    // Create a new client with the environment variables
-                    final nakamaClient = getNakamaClient(
-                      host: dotenv.env['NAKAMA_HOST']!,
-                      ssl: dotenv.env['NAKAMA_SSL']!.toLowerCase() == 'true',
-                      serverKey: dotenv.env['NAKAMA_SERVER_KEY']!,
-                      grpcPort: int.parse(dotenv.env['NAKAMA_GRPC_PORT']!),
-                      httpPort: int.parse(dotenv.env['NAKAMA_HTTP_PORT']!),
-                    );
-
-                    // Push the HostJoinScreen
-                    Navigator.pushReplacement(
-                      ctx,
-                      MaterialPageRoute(
-                        builder:
-                            (context) => HostJoinScreen(
-                              nakamaClient: nakamaClient,
-                              session: session!,
-                            ),
-                      ),
-                    );
-                  });
-                }
-                return;
-              }
-            }
-
-            final x = (data['x'] as num?)?.toDouble();
-            final y = (data['y'] as num?)?.toDouble();
-
-            if (x == null || y == null) {
-              print('Invalid position data: x=$x, y=$y');
-              return;
-            }
-
-            // Get remote screen height information
-            final remoteScreenHeight =
-                (data['screenHeight'] as num?)?.toDouble();
-            if (remoteScreenHeight != null) {
-              // Store the remote player's screen height
-              remoteScreenHeights[playerId] = remoteScreenHeight;
-
-              // Calculate the offset based on screen height difference
-              platformYOffset = (gameHeight - remoteScreenHeight) / 2;
-              print(
-                'Updated platformYOffset to $platformYOffset based on screen height difference',
-              );
-            }
-
-            final isMoving = data['isMoving'] as bool? ?? false;
-            final isJumping = data['isJumping'] as bool? ?? false;
-            final scaleX = (data['scaleX'] as num?)?.toDouble() ?? 1.0;
-
-            // Apply the offset to the remote player's Y position
-            final adjustedY = y + platformYOffset;
-
-            if (!remotePlayers.containsKey(playerId)) {
-              print('Creating new remote player: $playerId');
-              final remotePlayer =
-                  Monkey(
-                      null,
-                      worldWidth,
-                      gameHeight,
-                      playerId: playerId,
-                      isRemotePlayer: true,
-                    )
-                    ..position = Vector2(x, adjustedY)
-                    ..priority = 2;
-              remotePlayers[playerId] = remotePlayer;
-              gameLayer.add(remotePlayer);
-            } else {
-              print('Updating existing player: $playerId');
-              final remotePlayer = remotePlayers[playerId]!;
-              remotePlayer.updateRemoteState(
-                Vector2(x, adjustedY),
-                isMoving,
-                isJumping,
-                scaleX,
-              );
-            }
-          } catch (e, stackTrace) {
-            print('Error processing match data: $e');
-            print('Stack trace: $stackTrace');
-          }
-        }
-      });
+      // Notify other players that we've joined
+      socket!.sendMatchData(
+        matchId: matchId!,
+        opCode: 4,
+        data: List<int>.from(utf8.encode(jsonEncode(joinData))),
+      );
     }
 
     // Set up the reset callback to also reset the button and timer
@@ -911,6 +787,194 @@ class ApeEscapeGame extends FlameGame
         opCode: 2,
         data: List<int>.from(utf8.encode(jsonEncode(data))),
       );
+    }
+  }
+
+  // Add the necessary method to process platform state messages
+  void handlePlatformStateMessage(Map<String, dynamic> data) {
+    if (data.containsKey('platformId') && data.containsKey('state')) {
+      // Find the platform with the matching ID
+      final platformId = data['platformId'];
+      final platforms = gameLayer.children.whereType<BushPlatform>();
+
+      for (final platform in platforms) {
+        // Compare using the platform ID or position if needed
+        if (platform.platformId == platformId ||
+            (platform.position.x == data['x'] &&
+                platform.position.y == data['y'])) {
+          // Update the platform state
+          platform.syncState(data['state'], data);
+          break;
+        }
+      }
+    }
+  }
+
+  // Update the onMatchData method to handle all match data scenarios
+  void onMatchData(MatchData matchData) {
+    if (matchId != null && matchData.matchId != matchId) {
+      return; // Ignore data from other matches
+    }
+
+    try {
+      final List<int> dataBytes = matchData.data ?? [];
+      if (dataBytes.isEmpty) return;
+
+      final data = jsonDecode(utf8.decode(dataBytes));
+
+      // Ignore our own updates
+      final String? playerId = data['playerId'];
+      if (playerId == null) {
+        print('No playerId in data');
+        return;
+      }
+
+      if (playerId == session?.userId) {
+        print('Ignoring own update');
+        return;
+      }
+
+      print(
+        'Processing update from player: $playerId with opCode: ${matchData.opCode}',
+      );
+
+      if (matchData.opCode == 1) {
+        // Handle position updates
+        final double x = (data['x'] as num?)?.toDouble() ?? 0;
+        final double y = (data['y'] as num?)?.toDouble() ?? 0;
+        final bool isMoving = data['isMoving'] ?? false;
+        final bool isJumping = data['isJumping'] ?? false;
+        final double scaleX = (data['scaleX'] as num?)?.toDouble() ?? 1.0;
+        final isPaused = data['isPaused'] ?? false;
+
+        // Get remote screen height information
+        final double? remoteScreenHeight =
+            (data['screenHeight'] as num?)?.toDouble();
+        if (remoteScreenHeight != null) {
+          // Store the remote player's screen height
+          remoteScreenHeights[playerId] = remoteScreenHeight;
+
+          // Calculate the offset based on screen height difference
+          platformYOffset = (gameHeight - remoteScreenHeight) / 2;
+          print(
+            'Updated platformYOffset to $platformYOffset based on screen height difference',
+          );
+        }
+
+        // Apply the offset to the remote player's Y position
+        final adjustedY = y + platformYOffset;
+
+        if (!remotePlayers.containsKey(playerId)) {
+          print('Creating new remote player: $playerId');
+          final remotePlayer =
+              Monkey(
+                  null,
+                  worldWidth,
+                  gameHeight,
+                  playerId: playerId,
+                  isRemotePlayer: true,
+                )
+                ..position = Vector2(x, adjustedY)
+                ..priority = 2;
+          remotePlayers[playerId] = remotePlayer;
+          gameLayer.add(remotePlayer);
+        } else {
+          print('Updating existing player: $playerId');
+          final remotePlayer = remotePlayers[playerId]!;
+          remotePlayer.updateRemoteState(
+            Vector2(x, adjustedY),
+            isMoving,
+            isJumping,
+            scaleX,
+          );
+        }
+      } else if (matchData.opCode == 2) {
+        // Handle pause/resume events
+        final String? type = data['type'];
+
+        if (type == 'pause') {
+          final bool isPaused = data['isPaused'] ?? false;
+          if (isPaused) {
+            _isPaused = true;
+            timer.pause();
+            player.disableControls();
+            overlays.add('pause');
+            pauseEngine();
+          } else {
+            _isPaused = false;
+            timer.start();
+            player.enableControls();
+            overlays.remove('pause');
+            resumeEngine();
+          }
+        } else if (type == 'restart') {
+          // Handle restart signal from other players
+          resetLevel();
+        } else if (type == 'return_to_menu') {
+          // Handle return to menu signal from other players
+          final BuildContext? ctx = buildContext;
+          if (ctx != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              // Navigate to host join screen
+              Navigator.of(ctx).popUntil((route) => route.isFirst);
+
+              // Create a new client with the environment variables
+              final nakamaClient = getNakamaClient(
+                host: dotenv.env['NAKAMA_HOST']!,
+                ssl: dotenv.env['NAKAMA_SSL']!.toLowerCase() == 'true',
+                serverKey: dotenv.env['NAKAMA_SERVER_KEY']!,
+                grpcPort: int.parse(dotenv.env['NAKAMA_GRPC_PORT']!),
+                httpPort: int.parse(dotenv.env['NAKAMA_HTTP_PORT']!),
+              );
+
+              // Push the HostJoinScreen
+              Navigator.pushReplacement(
+                ctx,
+                MaterialPageRoute(
+                  builder:
+                      (context) => HostJoinScreen(
+                        nakamaClient: nakamaClient,
+                        session: session!,
+                      ),
+                ),
+              );
+            });
+          }
+        }
+      } else if (matchData.opCode == 3) {
+        // Handle platform state synchronization
+        if (data['type'] == 'platform_state') {
+          handlePlatformStateMessage(data);
+        }
+      } else if (matchData.opCode == 4) {
+        // Handle player join messages
+        if (data['type'] == 'player_join') {
+          print('Player joined: ${data['playerName'] ?? "Unknown"}');
+
+          // If a new player joined, send our current state to help them sync
+          if (socket != null && matchId != null && session != null) {
+            final myState = {
+              'playerId': session!.userId,
+              'x': player.position.x,
+              'y': player.position.y - platformYOffset, // Apply inverse offset
+              'isMoving': (joystick?.delta.x.abs() ?? 0) > 0,
+              'isJumping': !player.isGrounded,
+              'scaleX': player.scale.x,
+              'screenHeight': gameHeight,
+              'isPaused': _isPaused,
+            };
+
+            socket!.sendMatchData(
+              matchId: matchId!,
+              opCode: 1,
+              data: List<int>.from(utf8.encode(jsonEncode(myState))),
+            );
+          }
+        }
+      }
+    } catch (e, stackTrace) {
+      print('Error processing match data: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 }
